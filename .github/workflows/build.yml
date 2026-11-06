@@ -1,0 +1,57 @@
+name: Build, test and package
+on:
+  push:
+    paths-ignore:
+      - 'releases/**'
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'releases/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:45
+    steps:
+      - run: dnf install -y git gcc-c++ cmake ninja-build rpm-build qt6-qtbase-devel qt6-qtdeclarative-devel kf6-kwallet-devel extra-cmake-modules pipewire-devel pkgconf-pkg-config
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure
+      - run: cd build && cpack -G RPM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fedora-rpm
+          path: build/*.rpm
+  deb:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - run: apt-get update && apt-get install -y git ca-certificates build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev libkf6wallet-dev extra-cmake-modules dpkg-dev file pkg-config libpipewire-0.3-dev qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qttest
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure
+      - run: cd build && cpack -G DEB
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debian-deb
+          path: build/*.deb
+  flatpak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder appstream-compose
+      - run: flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - run: flatpak install --user --noninteractive flathub org.kde.Platform//6.10 org.kde.Sdk//6.10
+      - run: flatpak-builder --user --force-clean --repo=repo flatpak-build packaging/flatpak/io.phosrack.Phosrack.json
+      - run: flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo repo phosrack-0.3.0-x86_64.flatpak io.phosrack.Phosrack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: '*.flatpak'

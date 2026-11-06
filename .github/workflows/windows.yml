@@ -1,0 +1,58 @@
+name: Windows build and package
+on:
+  push:
+    paths-ignore:
+      - 'releases/**'
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'releases/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis --no-progress -y
+          "C:/Program Files (x86)/NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Configure and build
+        shell: pwsh
+        run: |
+          cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-win --parallel 2
+          exit $LASTEXITCODE
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build-win --output-on-failure
+      - name: Deploy, validate and package
+        shell: pwsh
+        run: ./packaging/windows/package.ps1 -BuildDirectory build-win -OutputDirectory dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phosrack-windows-x64
+          path: |
+            dist/*.exe
+            dist/*.zip
+          if-no-files-found: error

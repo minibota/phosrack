@@ -1,0 +1,22 @@
+/build*/
+*.user
+*.swp
+*.so
+*.so.*
+*.plasmoid
+*.zip
+*.tar.gz
+*.rpm
+*.deb
+*.flatpak
+.env
+.env.*
+CMakeUserPresets.json
+compile_commands.json
+!releases/**/*.rpm
+!releases/**/*.deb
+!releases/**/*.flatpak
+!releases/**/*.exe
+!releases/**/*.zip
+
+# User-facing installers are versioned only under releases/.

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.phosrack.Phosrack</id>
+  <name>Phosrack</name>
+  <summary>A compact modular music rack for Spotify</summary>
+  <summary xml:lang="es">Un rack musical compacto y modular para Spotify</summary>
+  <summary xml:lang="fr">Un rack musical compact et modulaire pour Spotify</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer><name>Phosrack contributors</name></developer>
+  <url type="homepage">https://github.com/minibota/phosrack</url>
+  <url type="bugtracker">https://github.com/minibota/phosrack/issues</url>
+  <launchable type="desktop-id">io.phosrack.Phosrack.desktop</launchable>
+  <description>
+    <p>Phosrack is a desktop Spotify controller inspired by classic modular media players. Its compact rack combines playback, search, queue and library views with an original live visualizer for your local audio output.</p>
+    <p>Connect your own Spotify developer application using Premium and browser authorization. Spotify plays on an existing Spotify device. The local visualizer follows your system output.</p>
+    <p>The local ten-band equalizer offers editable presets and preamp control. A fullscreen visualizer displays current and upcoming track information.</p>
+  </description>
+  <categories><category>AudioVideo</category><category>Audio</category></categories>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="0.3.0" date="2026-11-06"/></releases>
+</component>

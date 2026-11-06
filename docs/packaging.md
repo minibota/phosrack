@@ -1,0 +1,91 @@
+# Desktop packaging
+
+Phosrack 0.3.0 installs the application with embedded QML/translations, a small native
+PipeWire EQ worker, a desktop entry,
+AppStream metadata, an original SVG icon, documentation and the GPL license. Packages
+do not bundle the host's Qt/KDE libraries. Its desktop ID is `io.phosrack.Phosrack`.
+
+## RPM
+
+Build on Fedora 45 with the dependencies from README, then:
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+(cd build && cpack -G RPM)
+sudo rpm --define '_pkgverify_level digest' -Uvh ./build/phosrack-0.3.0-1.fc45.x86_64.rpm
+```
+
+CPack uses RPM's ELF dependency scanner and adds Qt Quick/PipeWire tools as runtime
+requirements. Native packages require a compatible distribution/ABI.
+
+Local development RPMs are unsigned. Fedora 45's strict RPM policy rejects unsigned
+packages even when their SHA256 digests are valid. The per-command override above
+keeps digest and dependency verification without changing global policy. Install missing
+runtime dependencies first using the distribution's signed packages:
+
+```sh
+sudo dnf install qt6-qtdeclarative qt6-qtsvg qt6-qtwayland kf6-kwallet pipewire pipewire-libs pipewire-utils
+```
+
+A public release should be signed with its publisher's trusted key; no signing identity
+or key has been invented for these local development artifacts.
+
+## Debian
+
+Build inside Debian 13 (trixie), using its own Qt 6.8 / KF6 libraries:
+
+```sh
+podman build -t phosrack-debian -f packaging/debian/Dockerfile .
+container_id=$(podman create phosrack-debian)
+podman cp "$container_id:/build/phosrack_0.3.0_amd64.deb" .
+podman rm "$container_id"
+sudo apt install ./phosrack_0.3.0_amd64.deb
+```
+
+The Dockerfile also works with Docker. CPack uses `dpkg-shlibdeps` to compute ELF
+library dependencies, with explicit QML/PipeWire package dependencies. A DEB made by
+renaming or converting the Fedora RPM is not supported.
+
+## Flatpak
+
+The manifest uses `org.kde.Platform` / `org.kde.Sdk` 6.10 and a local source directory:
+
+```sh
+flatpak install --user flathub org.kde.Platform//6.10 org.kde.Sdk//6.10
+flatpak-builder --user --force-clean --repo=repo flatpak-build packaging/flatpak/io.phosrack.Phosrack.json
+flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo repo phosrack-0.3.0-x86_64.flatpak io.phosrack.Phosrack
+flatpak install --user ./phosrack-0.3.0-x86_64.flatpak
+flatpak run io.phosrack.Phosrack
+```
+
+Required permissions are declared explicitly:
+
+- Network for Spotify HTTPS and the 127.0.0.1 OAuth callback.
+- Wayland / fallback X11, IPC and DRI for Qt rendering.
+- `xdg-run/pipewire-0` for direct output-monitor samples/routing.
+- `org.kde.kwalletd6` on the session bus for KWallet.
+
+The manifest does not grant home access, the whole session bus, microphones as selectable
+inputs, or `flatpak-spawn --host`. Access to the PipeWire socket gives the process audio
+server access; Phosrack itself restricts enumeration/capture to output sinks.
+
+The KDE runtime provides PipeWire client tools, modules and the client library.
+The EQ worker links that public library and owns its two audio streams and filters;
+it does not require a filter-chain daemon, a manager permission or a host command
+wrapper. The helper processes audio locally and connects to the host audio server.
+Actual build results are recorded in validation.md. Test playback,
+wallet authorization and live visuals on a normal desktop after installation.
+
+## Publication
+
+The current ID and local-source manifest support personal builds. Before submitting to
+Flathub or a distribution, establish a hosted project, verify project-ID ownership,
+add real homepage/support/source URLs and publisher contact data, sign releases and
+complete the distribution's metadata/review requirements. No remote submission or
+signing key is created by the local build.
+
+References: [CPack](https://cmake.org/cmake/help/latest/module/CPack.html),
+[Flatpak permissions](https://docs.flatpak.org/en/latest/sandbox-permissions.html),
+[KDE runtime manifest example](https://github.com/flathub/org.kde.dolphin/blob/master/org.kde.dolphin.json).
