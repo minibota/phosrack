@@ -11,6 +11,8 @@ on:
       - 'docs/**'
       - '**/*.md'
   workflow_dispatch:
+env:
+  PHOSRACK_RELEASE_VERSION: 0.3.1
 permissions:
   contents: read
 jobs:
@@ -51,8 +53,8 @@ jobs:
         run: ./packaging/windows/package.ps1 -BuildDirectory build-win -OutputDirectory dist
       - uses: actions/upload-artifact@v4
         with:
-          name: phosrack-windows-x64
+          name: phosrack-${{ env.PHOSRACK_RELEASE_VERSION }}-windows-x64
           path: |
-            dist/*.exe
-            dist/*.zip
+            dist/phosrack-${{ env.PHOSRACK_RELEASE_VERSION }}-windows-x64.exe
+            dist/phosrack-${{ env.PHOSRACK_RELEASE_VERSION }}-windows-x64.zip
           if-no-files-found: error

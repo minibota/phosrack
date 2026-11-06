@@ -1,4 +1,4 @@
-# Getting started with Phosrack 0.3.0
+# Getting started with Phosrack 0.3.1
 
 Phosrack is a QML + C++ desktop music rack with playback controls, search, queue,
 library, a local equalizer and fullscreen visualization. The interface follows the
@@ -6,9 +6,9 @@ system language (English, Spanish or French); unsupported languages use English.
 
 ## Install a development package
 
-Installers are stored under [releases/v0.3.0](releases/v0.3.0/). Choose the package
+Installers are stored under [releases/v0.3.1](releases/v0.3.1/). Choose the package
 for your operating system and CPU architecture. See
-[docs/validation.md](docs/validation.md) for the exact validation status.
+[0.3.1 validation notes](docs/validation-0.3.1.md) for the exact validation status.
 
 - Fedora 45 x86_64: install the RPM after its runtime dependencies.
 - Debian 13 amd64: install the DEB with your package manager.
@@ -20,29 +20,45 @@ Local development RPMs are unsigned. On Fedora 45, install the signed runtime
 dependencies, then use a per-command digest check without changing global policy:
 
     sudo dnf install qt6-qtdeclarative qt6-qtsvg qt6-qtwayland kf6-kwallet pipewire pipewire-libs pipewire-utils
-    sudo rpm --define '_pkgverify_level digest' -Uvh ./phosrack-0.3.0-1.fc45.x86_64.rpm
+    sudo rpm --define '_pkgverify_level digest' -Uvh ./phosrack-0.3.1-1.fc45.x86_64.rpm
 
 On Debian 13:
 
-    sudo apt install ./phosrack_0.3.0_amd64.deb
+    sudo apt install ./phosrack_0.3.1_amd64.deb
 
-For Flatpak:
+For Flatpak (including updates to an existing user installation):
 
-    flatpak install --user ./phosrack-0.3.0-x86_64.flatpak
+    flatpak install --user --reinstall ./phosrack-0.3.1-x86_64.flatpak
 
 See [docs/packaging.md](docs/packaging.md) for build instructions and dependencies.
 
 ## Connect Spotify
 
-1. Create an application in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. Enable Web API and register exactly http://127.0.0.1:43821/callback.
-3. Open Settings, paste the Client ID and click Connect Spotify.
-4. Authorize the application in your browser. A Client Secret is not needed.
-5. Open Spotify and start playback on a device.
+1. Open Settings and click **Connect Spotify**.
+2. Sign in to your own Spotify account and authorize Phosrack in the browser.
+3. Open Spotify and start playback on a device.
 
-Session credentials use the operating system's protected storage when available.
-Disconnect removes the saved token. Premium and Spotify's API restrictions still
-apply. This build does not use private Spotify interfaces or another project's ID.
+Release builds include Phosrack's public application ID. You do not need to create
+a developer application, enter a Client ID or share the developer's Spotify account.
+Session credentials use protected operating-system storage when available.
+Disconnect removes the saved token. A Client Secret is never needed.
+
+The bundled app is in Spotify development mode: its owner must have Premium, and
+new apps allow up to five authenticated users on the developer's allowlist. If your
+account is not allowed, browser login alone will not enable API requests. See
+[Spotify's access rules](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+Premium and an active Spotify device are also required for playback controls.
+
+### Advanced: use your own Spotify app
+
+Developers can create an application in the
+[Spotify Developer Dashboard](https://developer.spotify.com/dashboard), enable Web API
+and register exactly `http://127.0.0.1:43821/callback`. Expand **Advanced Spotify settings** in Phosrack
+Settings to enter that application's public Client ID, then connect again. Spotify's
+access restrictions still apply to your own application.
+
+To supply another default when compiling, see
+[Spotify application configuration](docs/packaging.md#spotify-application-configuration).
 
 ## Equalizer
 

@@ -17,6 +17,8 @@
 class SpotifyClient : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString clientId READ clientId WRITE setClientId NOTIFY clientIdChanged)
+    Q_PROPERTY(bool hasDefaultClientId READ hasDefaultClientId CONSTANT)
+    Q_PROPERTY(bool usesDefaultClientId READ usesDefaultClientId NOTIFY clientIdChanged)
     Q_PROPERTY(bool authorized READ authorized NOTIFY sessionChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY sessionChanged)
     Q_PROPERTY(QString status READ status NOTIFY sessionChanged)
@@ -36,6 +38,8 @@ public:
     explicit SpotifyClient(QObject *parent=nullptr, QNetworkAccessManager *transport=nullptr);
     ~SpotifyClient() override;
     QString clientId() const {return m_clientId;}
+    bool hasDefaultClientId() const {return !m_defaultClientId.isEmpty();}
+    bool usesDefaultClientId() const {return hasDefaultClientId()&&m_clientId==m_defaultClientId;}
     void setClientId(const QString &id);
     bool authorized() const {return !m_accessToken.isEmpty();}
     bool busy() const {return m_connecting||m_command;}
@@ -61,6 +65,7 @@ public:
     void setActive(bool value);
     Q_INVOKABLE void connectSpotify();
     Q_INVOKABLE void disconnectSpotify();
+    Q_INVOKABLE void resetToDefaultClientId();
     Q_INVOKABLE void refreshState();
     Q_INVOKABLE void refreshDevices();
     Q_INVOKABLE void playPause();
@@ -101,6 +106,8 @@ private:
     void control(const QByteArray &method,const QString &path,const QJsonObject &body={});
     void fail(const QString &message);
     void persistRefresh();
+    void saveClientIdOverride();
+    void clearSession(bool forgetStoredToken);
 #ifndef Q_OS_WIN
     void withWallet();
 #endif
@@ -115,6 +122,7 @@ private:
     QPointer<KWallet::Wallet> m_wallet;
 #endif
     QSettings m_settings;
+    const QString m_defaultClientId;
     QString m_clientId,m_status,m_error;
     QByteArray m_accessToken,m_refreshToken,m_verifier,m_oauthState;
     QVariantMap m_track;

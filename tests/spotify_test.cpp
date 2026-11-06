@@ -5,8 +5,10 @@
 #include <QJsonArray>
 #include <QQueue>
 #include <QUrlQuery>
+#include <QTemporaryDir>
 #include <cstring>
 #include "spotifyclient.h"
+#include "spotifyconfig.h"
 
 class MemoryReply : public QNetworkReply {
 public:
@@ -50,6 +52,83 @@ class SpotifyClientTest : public QObject {
         client.m_track={{"canControl",true},{"canToggle",true},{"canVolume",true},{"canSeek",true},{"playing",true},{"duration",100000}};
     }
 private slots:
+    void compiledDefaultAndStableAssignmentsPreserveSession() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        const auto compiled=QString::fromLatin1(Phosrack::BuildConfig::SpotifyClientId);
+        QCOMPARE(client.clientId(),compiled);
+        QCOMPARE(client.hasDefaultClientId(),!compiled.isEmpty());
+        QCOMPARE(client.usesDefaultClientId(),!compiled.isEmpty());
+        session(client);client.m_refreshToken="test-refresh";
+        const auto generation=client.m_generation;
+        QSignalSpy changed(&client,&SpotifyClient::clientIdChanged);
+        client.setClientId(" "+compiled+" ");
+        client.resetToDefaultClientId();
+        QVERIFY(client.authorized());QCOMPARE(client.m_refreshToken,QByteArray("test-refresh"));
+        QCOMPARE(client.m_generation,generation);QCOMPARE(changed.count(),0);
+        const auto custom=compiled==QString(32,'a')?QString(32,'b'):QString(32,'a');
+        client.setClientId(custom);
+        QCOMPARE(client.clientId(),custom);QVERIFY(!client.usesDefaultClientId());
+        QVERIFY(!client.authorized());QVERIFY(client.m_refreshToken.isEmpty());QCOMPARE(changed.count(),1);
+        client.setClientId("  ");
+        QCOMPARE(client.clientId(),compiled);QCOMPARE(client.usesDefaultClientId(),!compiled.isEmpty());
+        QCOMPARE(changed.count(),2);QVERIFY(transport.requests.isEmpty());
+    }
+    void savedOverridesSurviveUpgradeAndResetWithoutLeavingDefaultPinned() {
+        struct IsolatedConfiguration {
+            QTemporaryDir directory;
+            const QSettings::Format format=QSettings::defaultFormat();
+            const bool testModeWasSet=qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE");
+            const QByteArray oldTestMode=qgetenv("PHOSRACK_TEST_MODE");
+            IsolatedConfiguration(){
+                QSettings::setDefaultFormat(QSettings::IniFormat);
+                QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,directory.path());
+                qunsetenv("PHOSRACK_TEST_MODE");
+            }
+            ~IsolatedConfiguration(){
+                QSettings::setDefaultFormat(format);
+                if(testModeWasSet)qputenv("PHOSRACK_TEST_MODE",oldTestMode);else qunsetenv("PHOSRACK_TEST_MODE");
+            }
+        } isolated;
+        QVERIFY(isolated.directory.isValid());
+        const auto compiled=QString::fromLatin1(Phosrack::BuildConfig::SpotifyClientId);
+        const auto legacy=compiled==QString(32,'c')?QString(32,'d'):QString(32,'c');
+        QSettings settings("Phosrack","Phosrack");
+        settings.setValue("spotify/clientId",legacy);settings.sync();
+        {
+            SpotifyClient restored;
+            QCOMPARE(restored.clientId(),legacy);QVERIFY(!restored.usesDefaultClientId());
+            restored.resetToDefaultClientId();
+            QCOMPARE(restored.clientId(),compiled);
+            QVERIFY(!restored.m_settings.contains("spotify/clientId"));
+        }
+        {
+            SpotifyClient normal;
+            QCOMPARE(normal.clientId(),compiled);
+            normal.setClientId(legacy);
+            QCOMPARE(normal.m_settings.value("spotify/clientId").toString(),legacy);
+        }
+        {
+            SpotifyClient custom;
+            QCOMPARE(custom.clientId(),legacy);
+        }
+        // Empty legacy settings fall back; test mode ignores all saved settings
+        // while keeping the application's compile-time default deterministic.
+        settings.setValue("spotify/clientId","");settings.sync();
+        {SpotifyClient blankLegacy;QCOMPARE(blankLegacy.clientId(),compiled);}
+        settings.setValue("spotify/clientId",legacy);settings.sync();
+        qputenv("PHOSRACK_TEST_MODE","1");
+        SpotifyClient testClient;
+        QCOMPARE(testClient.clientId(),compiled);
+        testClient.setClientId(QString(32,'e'));
+        QCOMPARE(settings.value("spotify/clientId").toString(),legacy);
+    }
+    void defaultApplicationAccessDenialExplainsDevelopmentAllowlist() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
+        transport.responses.enqueue({403,"{}"});client.refreshState();QTRY_VERIFY(!client.m_polling);
+        if(client.hasDefaultClientId())QVERIFY(client.error().contains("authorized tester"));
+        else QVERIFY(client.error().contains("Premium"));
+        QVERIFY(!client.collectionBusy());
+    }
     void playbackRequestsAreRealApiShapes() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
         client.playPause();

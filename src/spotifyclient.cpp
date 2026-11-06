@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "spotifyclient.h"
 #include "protocol.h"
+#include "spotifyconfig.h"
 #ifdef Q_OS_WIN
 #include "tokenstore.h"
 #endif
@@ -63,8 +64,13 @@ bool playbackUri(const QString &uri,bool context) {
 }
 }
 SpotifyClient::SpotifyClient(QObject *parent, QNetworkAccessManager *transport)
-    :QObject(parent),m_network(transport ? transport : new QNetworkAccessManager(this)),m_settings("Phosrack","Phosrack") {
-    if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")) m_clientId=m_settings.value("spotify/clientId").toString();
+    :QObject(parent),m_network(transport ? transport : new QNetworkAccessManager(this)),m_settings("Phosrack","Phosrack"),
+      m_defaultClientId(QString::fromLatin1(Phosrack::BuildConfig::SpotifyClientId)) {
+    m_clientId=m_defaultClientId;
+    if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")) {
+        const auto saved=m_settings.value("spotify/clientId").toString().trimmed();
+        if(!saved.isEmpty())m_clientId=saved;
+    }
     m_track=Phosrack::playbackState({});
     m_status=tr("Not connected");
     m_poll.setInterval(3000);
@@ -88,10 +94,18 @@ SpotifyClient::~SpotifyClient() {
 }
 void SpotifyClient::setClientId(const QString &id) {
     const QString cleaned=id.trimmed();
-    if(cleaned==m_clientId)return;
-    disconnectSpotify();m_clientId=cleaned;
-    if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE"))m_settings.setValue("spotify/clientId",m_clientId);
+    const QString effective=cleaned.isEmpty()?m_defaultClientId:cleaned;
+    if(effective==m_clientId){saveClientIdOverride();return;}
+    // Changing application profiles cancels only the active in-memory session.
+    // Stored refresh tokens remain keyed by Client ID for a later switch back.
+    clearSession(false);m_clientId=effective;saveClientIdOverride();
     emit clientIdChanged();
+}
+void SpotifyClient::resetToDefaultClientId(){setClientId({});}
+void SpotifyClient::saveClientIdOverride() {
+    if(qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE"))return;
+    if(m_clientId==m_defaultClientId)m_settings.remove("spotify/clientId");
+    else m_settings.setValue("spotify/clientId",m_clientId);
 }
 QVariantMap SpotifyClient::track() const {
     auto value=m_track;
@@ -257,8 +271,11 @@ void SpotifyClient::requestToken(const QByteArray &form) {
     });
 }
 void SpotifyClient::disconnectSpotify() {
+    clearSession(true);
+}
+void SpotifyClient::clearSession(bool forgetStoredToken) {
     ++m_generation;m_callback.close();m_loginTimeout.stop();m_poll.stop();m_refresh.stop();
-    forgetRefresh();
+    if(forgetStoredToken)forgetRefresh();
     m_accessToken.clear();m_refreshToken.clear();m_oauthState.clear();m_verifier.clear();
     m_connecting=m_refreshing=m_polling=m_command=false;m_backoffUntil=0;
     m_track=Phosrack::playbackState({});m_devices.clear();clearCollections();m_status=tr("Not connected");clearError();
@@ -291,7 +308,9 @@ void SpotifyClient::api(const QByteArray &method,const QString &path,const QJson
         }
         if(code<200||code>=300) {
             if(code==404)fail(path.startsWith("me/player")?tr("No Spotify device is active. Open Spotify and play a track first."):tr("This Spotify collection is unavailable."));
-            else if(code==403)fail(tr("Spotify denied this action. Check Premium, permissions and the selected device. Reconnect to grant library access."));
+            else if(code==403)fail(usesDefaultClientId()
+                ?tr("Spotify denied access. If this app is in development mode, your account must be an authorized tester. Also check Premium, permissions and the selected device.")
+                :tr("Spotify denied this action. Check Premium, permissions and the selected device. Reconnect to grant library access."));
             else fail(tr("Could not contact Spotify. Playback state will be retried."));
             if(failed)failed();
             return;

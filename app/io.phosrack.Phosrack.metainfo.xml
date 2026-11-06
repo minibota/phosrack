@@ -13,10 +13,10 @@
   <launchable type="desktop-id">io.phosrack.Phosrack.desktop</launchable>
   <description>
     <p>Phosrack is a desktop Spotify controller inspired by classic modular media players. Its compact rack combines playback, search, queue and library views with an original live visualizer for your local audio output.</p>
-    <p>Connect your own Spotify developer application using Premium and browser authorization. Spotify plays on an existing Spotify device. The local visualizer follows your system output.</p>
+    <p>Connect your own Spotify account with browser authorization. The bundled public application ID remains subject to Spotify Premium and development-mode access restrictions. Spotify plays on an existing Spotify device. The local visualizer follows your system output.</p>
     <p>The local ten-band equalizer offers editable presets and preamp control. A fullscreen visualizer displays current and upcoming track information.</p>
   </description>
   <categories><category>AudioVideo</category><category>Audio</category></categories>
   <content_rating type="oars-1.1"/>
-  <releases><release version="0.3.0" date="2026-11-06"/></releases>
+  <releases><release version="0.3.1" date="2026-11-07"/><release version="0.3.0" date="2026-11-06"/></releases>
 </component>

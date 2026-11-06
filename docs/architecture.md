@@ -8,12 +8,15 @@ installed application needs no source checkout or machine-wide QML plugin paths.
 App.qml owns the window. PhosrackView.qml owns long-lived session/audio/settings
 objects and reorders only the player, equalizer, visualizer and music presentations.
 RackPanel.qml implements folding and header/arrow reordering. MusicBrowser.qml
-contains search, queue and library views. SettingsDialog.qml contains OAuth
+contains search, queue and library views. SettingsDialog.qml offers Connect Spotify with advanced OAuth
 configuration, output override, motion preference and Spotify device transfer.
 The window has no outer scrolling view; lists and Settings scroll independently.
 
 SpotifyClient uses asynchronous HTTPS requests, PKCE browser authorization and
-a loopback callback. Refresh tokens use KWallet on Linux or Windows Credential Manager when available; access
+a loopback callback. CMake's PHOSRACK_SPOTIFY_CLIENT_ID supplies a public default
+application ID on every platform. An explicit user override is stored separately
+from that build default; normal sign-in still authorizes each user's own account.
+No developer account credentials or Client Secret are embedded. Refresh tokens use KWallet on Linux or Windows Credential Manager when available; access
 tokens remain in memory. Session generations discard replies after cancellation,
 while independent search/library generations reject stale collection responses.
 Playback polling is slower when hidden; rate-limit responses enforce backoff.

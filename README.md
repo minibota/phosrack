@@ -1,18 +1,18 @@
 # Phosrack
 
-[![Version 0.3.0](https://img.shields.io/badge/version-0.3.0-bce982)](releases/v0.3.0/)
+[![Version 0.3.1](https://img.shields.io/badge/version-0.3.1-bce982)](releases/v0.3.1/)
 [![Linux build](https://github.com/minibota/phosrack/actions/workflows/build.yml/badge.svg?branch=main&label=Linux)](https://github.com/minibota/phosrack/actions/workflows/build.yml)
 [![Windows build](https://github.com/minibota/phosrack/actions/workflows/windows.yml/badge.svg?branch=main&label=Windows)](https://github.com/minibota/phosrack/actions/workflows/windows.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
-**0.3.0 · QML + C++ desktop music rack** · GPL-3.0-or-later
+**0.3.1 · QML + C++ desktop music rack** · GPL-3.0-or-later
 
 A compact media-player rack inspired by the classic Winamp era, with modular panels,
 a real local equalizer and an original fullscreen audio visualizer.
 
-[Getting started](GETTING_STARTED.md) · [Installers](releases/v0.3.0/) ·
+[Getting started](GETTING_STARTED.md) · [Installers](releases/v0.3.1/) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
-[Validation](docs/validation.md) · [Issues](https://github.com/minibota/phosrack/issues)
+[Validation](docs/validation-0.3.1.md) · [Issues](https://github.com/minibota/phosrack/issues)
 
 ## Screenshot
 
@@ -30,7 +30,7 @@ Phosrack in English with Spotify playback, the equalizer, live spectrum visualiz
 - Orbit, Spectrum and Oscilloscope visualization, reduced motion, fullscreen mode,
   and an overlay for the current and next track.
 - English, Spanish and French selected from the system language; English fallback.
-- Spotify Authorization Code with PKCE, without a client secret.
+- Connect Spotify directly using browser authorization with PKCE; no Client ID setup for normal use.
 - Protected session storage: KWallet on Linux and Windows Credential Manager on Windows.
 
 The application embeds its QML, icon and translation catalogs. It does not require
@@ -39,21 +39,38 @@ no private Spotify APIs, borrowed application credentials or librespot are used.
 
 ## Install
 
-Download the package for your platform from [releases/v0.3.0](releases/v0.3.0/).
+Download the package for your platform from [releases/v0.3.1](releases/v0.3.1/).
 Linux formats are RPM (Fedora 45 x86_64), DEB (Debian 13 amd64) and Flatpak.
 The Windows workflow produces an x64 installer and portable ZIP using MSVC.
 
+To update an existing user Flatpak installation with the downloaded bundle:
+
+    flatpak install --user --reinstall ./phosrack-0.3.1-x86_64.flatpak
+
 Follow [GETTING_STARTED.md](GETTING_STARTED.md) for installation, including the
 per-command digest verification needed for unsigned development RPMs. Check
-[validation.md](docs/validation.md) for completed build/runtime checks; a successful
+[validation notes](docs/validation-0.3.1.md) for completed build/runtime checks; a successful
 Windows compilation does not by itself verify WASAPI or Equalizer APO on real hardware.
 
 ## Spotify setup and scope
 
-Create your own application in the [Developer Dashboard](https://developer.spotify.com/dashboard),
-enable Web API and register exactly http://127.0.0.1:43821/callback. Open Settings,
-paste the Client ID and authorize in your browser. A Client Secret is not needed.
-Premium, an active Spotify playback device and the platform's API restrictions apply.
+Open Settings, click **Connect Spotify** and authorize your own Spotify account in
+your browser. Release builds include Phosrack's public Client ID; you do not need to
+create a developer application or enter credentials in Phosrack. Each person signs
+in to their own account. A Client Secret is never required.
+
+The bundled application is in Spotify development mode. Its owner must retain
+Premium, and Spotify limits new development applications to five authenticated
+users who must be added to the application's allowlist. Being able to open the
+login page does not grant API access. Public downloads do not remove these limits;
+see [Spotify's quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+Playback controls also require Premium and an active Spotify playback device.
+
+Developers can expand **Advanced Spotify settings** in Settings to use their own application. Enable
+Web API and register exactly `http://127.0.0.1:43821/callback` in its Developer Dashboard.
+For your own builds, override the public ID at configuration time with
+`-DPHOSRACK_SPOTIFY_CLIENT_ID=YOUR_32_CHARACTER_CLIENT_ID`; see the
+[packaging guide](docs/packaging.md#spotify-application-configuration).
 
 The requested permissions cover playback, saved library and playlists. Older 0.1
 sessions need reauthorization for library permissions. Development-mode search is
@@ -128,7 +145,7 @@ Artwork and effects are original; no Winamp or Windows Media Player assets are b
 Phosrack is independent of Spotify, Winamp, KDE and Microsoft.
 
 The repository is https://github.com/minibota/phosrack. Installable artifacts are kept
-under releases/v0.3.0/. Fully detachable rack panels remain future work.
+under releases/v0.3.1/. Fully detachable rack panels remain future work.
 
 ## Primary references
 

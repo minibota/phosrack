@@ -10,7 +10,36 @@ Dialog {
     property var preferences
     property var equalizer
     property bool reducedMotion: false
+    property bool advancedSpotifyExpanded: false
+    property bool clientDraftModified: false
     signal motionPreferenceChanged(bool reduced)
+    function syncClientDraft() {
+        if (!clientDraftModified) clientField.text = spotify.clientId
+    }
+    function applyClientDraft() {
+        if (!clientDraftModified) return true
+        if (spotify.authorized || spotify.busy) return false
+        spotify.clientId = clientField.text.trim()
+        clientDraftModified = false
+        syncClientDraft()
+        return true
+    }
+    function connectAccount() {
+        if (spotify.busy) return
+        if (spotify.authorized) spotify.disconnectSpotify()
+        else if (applyClientDraft()) {
+            spotify.connectSpotify()
+            if (!/^[a-fA-F0-9]{32}$/.test(spotify.clientId)) advancedSpotifyExpanded = true
+        }
+    }
+    Connections {
+        target: settings.spotify
+        function onClientIdChanged() { settings.syncClientDraft() }
+    }
+    Component.onCompleted: {
+        advancedSpotifyExpanded = !spotify.hasDefaultClientId
+        syncClientDraft()
+    }
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: Math.min(450, parent.width - 24); height: Math.min(660, parent.height - 32)
@@ -20,35 +49,75 @@ Dialog {
         RackButton { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: qsTr("Close"); onClicked: settings.close() }
     }
     background: Rectangle { color: "#272a3b"; radius: 4; border.color: "#73778d" }
-    onOpened: { audio.refreshSources(); if (spotify.authorized) spotify.refreshDevices() }
+    onOpened: {
+        if (!spotify.hasDefaultClientId) advancedSpotifyExpanded = true
+        syncClientDraft()
+        audio.refreshSources()
+        if (spotify.authorized) spotify.refreshDevices()
+    }
     contentItem: ScrollView {
-        id: settingsScroll; clip: true; contentWidth: availableWidth
+        id: settingsScroll; objectName: "settingsScroll"; clip: true; contentWidth: availableWidth
         ScrollBar.vertical: RackScrollBar {}
         ColumnLayout {
             width: settingsScroll.availableWidth; spacing: 10
             Text { text: "SPOTIFY"; color: "#baff74"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 13 }
-            Text { Layout.fillWidth: true; text: qsTr("Create a Spotify developer app with Web API and this redirect URI:"); color: "#b3bda9"; font.pixelSize: 12; wrapMode: Text.Wrap }
-            TextField {
-                Layout.fillWidth: true; text: "http://127.0.0.1:43821/callback"; readOnly: true; selectByMouse: true
-                Accessible.name: qsTr("Redirect URI"); font.pixelSize: 12
-            }
-            TextField {
-                id: clientField; Layout.fillWidth: true; placeholderText: qsTr("Client ID (no Client Secret)"); text: spotify.clientId
-                placeholderTextColor: "#93ad7b"; enabled: !spotify.authorized && !spotify.busy; selectByMouse: true; maximumLength: 32
-                Accessible.name: qsTr("Spotify Client ID"); onEditingFinished: spotify.clientId = text
-            }
+            Text { Layout.fillWidth: true; visible: !spotify.authorized; text: qsTr("Sign in with your Spotify account in your browser, then return to Phosrack."); color: "#b3bda9"; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
                 Layout.fillWidth: true
                 RackButton {
+                    objectName: "connectSpotifyButton"
                     text: spotify.authorized ? qsTr("Disconnect") : spotify.busy ? qsTr("Connecting…") : qsTr("Connect Spotify")
-                    lit: spotify.authorized; enabled: !spotify.busy || spotify.authorized
-                    onClicked: { if (spotify.authorized) spotify.disconnectSpotify(); else { spotify.clientId = clientField.text; spotify.connectSpotify() } }
+                    lit: spotify.authorized; enabled: !spotify.busy
+                    onClicked: settings.connectAccount()
                 }
-                RackButton { text: qsTr("Dashboard ↗"); onClicked: Qt.openUrlExternally("https://developer.spotify.com/dashboard") }
-                RackButton { text: qsTr("Cancel"); visible: spotify.busy && !spotify.authorized; onClicked: spotify.disconnectSpotify() }
+                RackButton { objectName: "cancelSpotifyButton"; text: qsTr("Cancel"); visible: spotify.busy && !spotify.authorized; onClicked: spotify.disconnectSpotify() }
             }
             Text { Layout.fillWidth: true; text: spotify.error || spotify.status; color: spotify.error ? "#f0b99a" : "#baff74"; font.pixelSize: 11; wrapMode: Text.Wrap }
             Text { Layout.fillWidth: true; text: qsTr("Premium required. Your session is stored in %1 when available.").arg(spotify.credentialStorage); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+            Text { Layout.fillWidth: true; text: qsTr("During testing, the app owner must allow your Spotify account."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+            RackButton {
+                objectName: "advancedSpotifyButton"
+                text: (settings.advancedSpotifyExpanded ? "▾ " : "▸ ") + qsTr("Advanced Spotify settings")
+                Layout.fillWidth: true
+                onClicked: settings.advancedSpotifyExpanded = !settings.advancedSpotifyExpanded
+            }
+            ColumnLayout {
+                objectName: "advancedSpotifyContent"
+                visible: settings.advancedSpotifyExpanded
+                Layout.fillWidth: true; spacing: 8
+                Text { Layout.fillWidth: true; text: qsTr("Use your own Spotify application for a separate development setup."); color: "#b3bda9"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: spotify.usesDefaultClientId ? qsTr("Using the built-in Spotify application.") : qsTr("Using a custom Spotify application."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                TextField {
+                    id: clientField; objectName: "spotifyClientIdField"; Layout.fillWidth: true
+                    placeholderText: spotify.hasDefaultClientId ? qsTr("Custom Client ID (empty uses the default)") : qsTr("Client ID (no Client Secret)")
+                    placeholderTextColor: "#93ad7b"; enabled: !spotify.authorized && !spotify.busy
+                    selectByMouse: true; maximumLength: 32
+                    Accessible.name: qsTr("Spotify Client ID")
+                    onTextEdited: settings.clientDraftModified = true
+                    onEditingFinished: settings.applyClientDraft()
+                }
+                Text { Layout.fillWidth: true; text: qsTr("Register this redirect URI in your Spotify developer app:"); color: "#b3bda9"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                TextField {
+                    objectName: "spotifyRedirectUriField"
+                    Layout.fillWidth: true; text: "http://127.0.0.1:43821/callback"; readOnly: true; selectByMouse: true
+                    Accessible.name: qsTr("Redirect URI"); font.pixelSize: 12
+                }
+                Flow {
+                    Layout.fillWidth: true; spacing: 6
+                    RackButton { text: qsTr("Dashboard ↗"); onClicked: Qt.openUrlExternally("https://developer.spotify.com/dashboard") }
+                    RackButton {
+                        objectName: "resetSpotifyClientIdButton"
+                        text: qsTr("Use default application")
+                        visible: spotify.hasDefaultClientId
+                        enabled: !spotify.authorized && !spotify.busy && (!spotify.usesDefaultClientId || settings.clientDraftModified)
+                        onClicked: {
+                            settings.clientDraftModified = false
+                            spotify.resetToDefaultClientId()
+                            settings.syncClientDraft()
+                        }
+                    }
+                }
+            }
             ColumnLayout {
                 visible: Qt.platform.os === "windows"
                 Layout.fillWidth: true; spacing: 6

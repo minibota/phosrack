@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+// A Client ID is public application identification, never a Client Secret.
+namespace Phosrack::BuildConfig {
+inline constexpr char SpotifyClientId[] = "@PHOSRACK_SPOTIFY_CLIENT_ID@";
+}

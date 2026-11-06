@@ -3,7 +3,9 @@
 Refresh tokens use KWallet on Linux (Phosrack folder) and Windows Credential Manager
 on Windows, namespaced by the public Client ID.
 Access tokens, PKCE verifiers and OAuth state exist only in process memory. The
-Client ID is public configuration, not a secret. Never paste a Client Secret into
+Client ID is public configuration, not a secret. Release builds include the project
+application ID; this grants no access to the developer's account. Each user authorizes
+their own account, subject to Spotify's application access restrictions. Never paste a Client Secret into
 the application. No tokens are stored in QSettings, logs or source files.
 
 The audio monitor runs while the visualizer is visible, following the default output
