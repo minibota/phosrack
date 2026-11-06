@@ -37,6 +37,38 @@ The application embeds its QML, icon and translation catalogs. It does not requi
 Plasma or a globally installed QML plugin. Spotify playback uses an existing player;
 no private Spotify APIs, borrowed application credentials or librespot are used.
 
+## Limitations
+
+> [!IMPORTANT]
+> **Spotify Premium is required for playback controls.** Phosrack controls Spotify
+> playback; it does not stream music itself. For playback on this computer, keep the
+> official Spotify desktop app running in the background or the
+> [Spotify Web Player](https://open.spotify.com/) open in your browser.
+> Start playback there first, then use Phosrack. You can also control another active
+> Spotify Connect device, but its audio stays on that device.
+
+Before installing, please be aware of these current limitations:
+
+- **Spotify Free playback controls are not supported.** The built-in Client ID
+  simplifies sign-in; it does not unlock Premium features or bypass Spotify's
+  [playback requirements](https://developer.spotify.com/documentation/web-api/reference/start-a-users-playback).
+- **Spotify access is limited to authorized testers.** The bundled Spotify
+  application is in development mode, with up to five allowlisted users. Downloading
+  Phosrack or completing browser sign-in does not automatically grant API access,
+  even with Premium. See [Spotify setup and scope](#spotify-setup-and-scope).
+- **No offline playback or music downloads.** Spotify playback and API features
+  require an internet connection; Phosrack cannot download songs or play them offline.
+- **The visualizer and EQ work with local audio only.** They cannot visualize or
+  process sound playing on a remote phone, speaker or other Spotify Connect device.
+  The visualizer includes all audio on the monitored output, including other apps
+  and notifications.
+- **The equalizer needs additional setup.** Linux requires PipeWire and routing the
+  player to the **Phosrack EQ** output. Windows requires a separate Equalizer APO
+  installation configured for the playback device. See [Local audio](#local-audio).
+- **Queue and library editing is limited.** You can view the queue and add tracks,
+  but cannot remove or reorder queued items. Library views support browsing, not
+  saving/removing library items or editing playlists.
+
 ## Install
 
 Download the package for your platform from the
