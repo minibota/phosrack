@@ -16,7 +16,7 @@ a real local equalizer and an original fullscreen audio visualizer.
 
 ## Screenshot
 
-<img src="docs/images/phosrack.png" alt="Phosrack playing Spotify with the ten-band equalizer, live spectrum visualizer and playback queue" width="470">
+<img src="docs/images/phosrack-spotify.png" alt="Phosrack playing Spotify with the ten-band equalizer, live spectrum visualizer and playback queue" width="470">
 
 Phosrack in English with Spotify playback, the equalizer, live spectrum visualization and the queue.
 
