@@ -10,22 +10,28 @@ Phosrack does not add an account to that allowlist or grant access to the develo
 account. Playback requires Premium and an active Spotify device. See
 [Spotify's quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
 
-## Planned packages
+## Downloads
 
-The native workflows produce these five files from one source revision:
+Download from the [GitHub release](https://github.com/minibota/phosrack/releases/tag/v0.3.1)
+or use the versioned files below. Check them against [SHA256SUMS](SHA256SUMS).
 
 | Platform | File |
 | --- | --- |
-| Windows 11 x64 | `phosrack-0.3.1-windows-x64.exe` |
-| Windows x64 portable | `phosrack-0.3.1-windows-x64.zip` |
-| Fedora 45 x64 | `phosrack-0.3.1-1.fc45.x86_64.rpm` |
-| Debian 13 amd64 | `phosrack_0.3.1_amd64.deb` |
-| Linux x64 Flatpak | `phosrack-0.3.1-x86_64.flatpak` |
+| Windows 11 x64 | [Installer](phosrack-0.3.1-windows-x64.exe) |
+| Windows x64 portable | [ZIP](phosrack-0.3.1-windows-x64.zip) |
+| Fedora 45 x64 | [RPM](phosrack-0.3.1-1.fc45.x86_64.rpm) |
+| Debian 13 amd64 | [DEB](phosrack_0.3.1_amd64.deb) |
+| Linux x64 Flatpak | [Bundle](phosrack-0.3.1-x86_64.flatpak) |
 
-Build and validation results will be recorded after the actual 0.3.1 workflows pass.
-No 0.3.0 test result is presented as a 0.3.1 package check. Follow
-[Getting started](../../GETTING_STARTED.md) and the
-[0.3.1 validation notes](../../docs/validation-0.3.1.md).
+All packages use application source
+[`8023913`](https://github.com/minibota/phosrack/commit/80239131e903c1450c2b0118f7c9d05fd12dcd1d).
+RPM and DEB are exact native CI artifacts, with 17/17 CTest checks passing for each.
+Windows is the exact native CI deployment, with 16/16 checks and clean deployment
+smoke tests passing. The Flatpak was built locally from a clean archive of the same
+commit using KDE SDK 6.10, then installed and smoke-tested in an isolated profile;
+its CI job was still provisioning build tools when the release was prepared.
+See [Getting started](../../GETTING_STARTED.md) and the
+[validation record](../../docs/validation-0.3.1.md) for provenance and manual checks.
 
 The local equalizer and visualizer retain their 0.3.0 platform requirements:
 PipeWire on Linux and optional, separately installed Equalizer APO for Windows EQ.

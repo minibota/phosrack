@@ -6,8 +6,10 @@ system language (English, Spanish or French); unsupported languages use English.
 
 ## Install a development package
 
-Installers are stored under [releases/v0.3.1](releases/v0.3.1/). Choose the package
-for your operating system and CPU architecture. See
+Download an installer from the
+[v0.3.1 release](https://github.com/minibota/phosrack/releases/tag/v0.3.1), or the
+[versioned package folder](releases/v0.3.1/). Choose the package for your operating
+system and CPU architecture. See
 [0.3.1 validation notes](docs/validation-0.3.1.md) for the exact validation status.
 
 - Fedora 45 x86_64: install the RPM after its runtime dependencies.

@@ -1,6 +1,6 @@
 # Phosrack
 
-[![Version 0.3.1](https://img.shields.io/badge/version-0.3.1-bce982)](releases/v0.3.1/)
+[![Version 0.3.1](https://img.shields.io/badge/version-0.3.1-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.1)
 [![Linux build](https://github.com/minibota/phosrack/actions/workflows/build.yml/badge.svg?branch=main&label=Linux)](https://github.com/minibota/phosrack/actions/workflows/build.yml)
 [![Windows build](https://github.com/minibota/phosrack/actions/workflows/windows.yml/badge.svg?branch=main&label=Windows)](https://github.com/minibota/phosrack/actions/workflows/windows.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
@@ -10,7 +10,7 @@
 A compact media-player rack inspired by the classic Winamp era, with modular panels,
 a real local equalizer and an original fullscreen audio visualizer.
 
-[Getting started](GETTING_STARTED.md) · [Installers](releases/v0.3.1/) ·
+[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.1) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
 [Validation](docs/validation-0.3.1.md) · [Issues](https://github.com/minibota/phosrack/issues)
 
@@ -39,7 +39,8 @@ no private Spotify APIs, borrowed application credentials or librespot are used.
 
 ## Install
 
-Download the package for your platform from [releases/v0.3.1](releases/v0.3.1/).
+Download the package for your platform from the
+[v0.3.1 release](https://github.com/minibota/phosrack/releases/tag/v0.3.1).
 Linux formats are RPM (Fedora 45 x86_64), DEB (Debian 13 amd64) and Flatpak.
 The Windows workflow produces an x64 installer and portable ZIP using MSVC.
 
@@ -66,8 +67,9 @@ login page does not grant API access. Public downloads do not remove these limit
 see [Spotify's quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
 Playback controls also require Premium and an active Spotify playback device.
 
-Developers can expand **Advanced Spotify settings** in Settings to use their own application. Enable
-Web API and register exactly `http://127.0.0.1:43821/callback` in its Developer Dashboard.
+Developers can expand **Advanced Spotify settings** in Settings to use their own
+application. Enable Web API and register exactly `http://127.0.0.1:43821/callback`
+in its Developer Dashboard.
 For your own builds, override the public ID at configuration time with
 `-DPHOSRACK_SPOTIFY_CLIENT_ID=YOUR_32_CHARACTER_CLIENT_ID`; see the
 [packaging guide](docs/packaging.md#spotify-application-configuration).

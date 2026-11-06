@@ -1,8 +1,9 @@
 # Third-party components in the Windows packages
 
-The Windows packaging workflow uses the Qt 6.8.3 MSVC 2022 x64 SDK. The exact
-application source revision and completed build records are recorded in this
-version's README after the actual 0.3.1 workflows finish.
+The Windows packages were built from application source
+80239131e903c1450c2b0118f7c9d05fd12dcd1d with Qt 6.8.3 MSVC 2022 x64, by the
+successful native Windows workflow:
+https://github.com/minibota/phosrack/actions/runs/42311827116
 
 Phosrack source, build instructions and deployment scripts are available in this
 repository under GPL-3.0-or-later. The portable package permits replacement of its
