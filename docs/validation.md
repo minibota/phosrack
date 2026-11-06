@@ -35,16 +35,30 @@ diagnostic non-passive capture verified the transport without playing a tone.
 
 ## Distribution checks
 
-Final RPM/DEB/Flatpak package installation checks will be recorded here after export.
-The Linux packages include the native EQ worker. Flatpak uses the KDE runtime's public
-PipeWire library and client modules; it needs no host-command execution or extra
-manager permission.
+The distributed RPM, DEB, Flatpak, Windows installer and Windows portable ZIP were
+built from source commit `6eddf71adf888b52100137254f78dac6b7474b5e` in GitHub Actions.
+The checked-in artifacts are in `releases/v0.3.0/`, with `SHA256SUMS`.
 
-Windows source includes WASAPI loopback, Windows Credential Manager and optional
-Equalizer APO integration. A native MSVC workflow builds and tests the executable,
-deploys its Qt/compiler dependencies and validates the deployed tree before creating
-the portable ZIP and installer. Until that workflow completes, Windows runtime
-validation is pending; no locally fabricated Windows executable is supplied.
+- Fedora 45 RPM: the native CI build and tests passed. The exported application
+  passed Settings and fullscreen smoke tests after extraction on Fedora 45. The
+  EQ worker resolves system libraries; header/payload SHA256 digests verify.
+- Debian 13 DEB: all 17 suites passed with Qt 6.8.2. A minimal Debian image installed
+  the package and its declared runtime dependencies without development packages.
+  The exact CI DEB then passed Settings/fullscreen smoke tests and created,
+  controlled and stopped the real PipeWire EQ output in that minimal runtime.
+- KDE 6.10 Flatpak: the exported CI bundle installed in an isolated test profile and
+  passed Settings/fullscreen smoke tests. Its installed worker also passed the
+  actual +6 dB / 0.5x preamp DSP proof described above. The bundle uses the runtime's
+  public PipeWire library/client modules with no host-command execution or extra
+  manager permission.
+- Windows x64: Qt 6.8.3 / MSVC 2022 on the GitHub-hosted `windows-2022` runner passed
+  all 16 suites, including Windows EQ configuration tests. The deployed tree passed
+  separate Settings/French and fullscreen/Spanish smoke tests with SDK paths removed.
+  CPack produced a real AMD64 executable, portable ZIP and NSIS installer. ZIP
+  integrity was checked; the installer was built, not interactively installed.
+
+Build records: [Linux run](https://github.com/minibota/phosrack/actions/runs/42306148198)
+and [Windows run](https://github.com/minibota/phosrack/actions/runs/42306148235).
 
 ## Remaining manual checks
 

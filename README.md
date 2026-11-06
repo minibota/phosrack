@@ -5,6 +5,8 @@
 A compact media-player rack inspired by the classic Winamp era, with modular panels,
 a real local equalizer and an original fullscreen audio visualizer.
 
+![Phosrack desktop rack](docs/images/phosrack.png)
+
 [Getting started](GETTING_STARTED.md) · [Installers](releases/v0.3.0/) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
 [Validation](docs/validation.md) · [Issues](https://github.com/minibota/phosrack/issues)
