@@ -1,15 +1,24 @@
 # Phosrack
 
+[![Version 0.3.0](https://img.shields.io/badge/version-0.3.0-bce982)](releases/v0.3.0/)
+[![Linux build](https://github.com/minibota/phosrack/actions/workflows/build.yml/badge.svg?branch=main&label=Linux)](https://github.com/minibota/phosrack/actions/workflows/build.yml)
+[![Windows build](https://github.com/minibota/phosrack/actions/workflows/windows.yml/badge.svg?branch=main&label=Windows)](https://github.com/minibota/phosrack/actions/workflows/windows.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+
 **0.3.0 · QML + C++ desktop music rack** · GPL-3.0-or-later
 
 A compact media-player rack inspired by the classic Winamp era, with modular panels,
 a real local equalizer and an original fullscreen audio visualizer.
 
-![Phosrack desktop rack](docs/images/phosrack.png)
-
 [Getting started](GETTING_STARTED.md) · [Installers](releases/v0.3.0/) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
 [Validation](docs/validation.md) · [Issues](https://github.com/minibota/phosrack/issues)
+
+## Screenshot
+
+![Phosrack desktop application with player, ten-band equalizer, visualizer and music panels](docs/images/phosrack.png)
+
+The default rack in English, shown before connecting a Spotify account.
 
 ## Features
 
@@ -39,6 +48,25 @@ per-command digest verification needed for unsigned development RPMs. Check
 [validation.md](docs/validation.md) for completed build/runtime checks; a successful
 Windows compilation does not by itself verify WASAPI or Equalizer APO on real hardware.
 
+## Spotify setup and scope
+
+Create your own application in the [Developer Dashboard](https://developer.spotify.com/dashboard),
+enable Web API and register exactly http://127.0.0.1:43821/callback. Open Settings,
+paste the Client ID and authorize in your browser. A Client Secret is not needed.
+Premium, an active Spotify playback device and the platform's API restrictions apply.
+
+The requested permissions cover playback, saved library and playlists. Older 0.1
+sessions need reauthorization for library permissions. Development-mode search is
+limited to ten results per content type per page; playlist contents can be read only
+for owned/collaborative playlists. The application handles restrictions, empty playback,
+token refresh and request throttling.
+
+This project is independent of Spotify and is not presented as Spotify-approved.
+Use of the official API does not establish compliance of every combined feature.
+The developer policy's visual-media and core-experience provisions still need to be
+resolved before representing the application as an approved public Spotify client.
+Publishing source does not grant additional API access or permission.
+
 ## Build from source
 
 Qt 6.5 or later and a C++17 compiler are required.
@@ -65,25 +93,6 @@ For a user-local Linux installation, run:
 Windows uses MSVC 2022 and the Qt Windows SDK, without KWallet or Linux PipeWire.
 See [docs/windows.md](docs/windows.md). Packages are built with their target
 distribution/toolchain; Fedora binaries are not converted into Debian packages.
-
-## Spotify setup and scope
-
-Create your own application in the [Developer Dashboard](https://developer.spotify.com/dashboard),
-enable Web API and register exactly http://127.0.0.1:43821/callback. Open Settings,
-paste the Client ID and authorize in your browser. A Client Secret is not needed.
-Premium, an active Spotify playback device and the platform's API restrictions apply.
-
-The requested permissions cover playback, saved library and playlists. Older 0.1
-sessions need reauthorization for library permissions. Development-mode search is
-limited to ten results per content type per page; playlist contents can be read only
-for owned/collaborative playlists. The application handles restrictions, empty playback,
-token refresh and request throttling.
-
-This project is independent of Spotify and is not presented as Spotify-approved.
-Use of the official API does not establish compliance of every combined feature.
-The developer policy's visual-media and core-experience provisions still need to be
-resolved before representing the application as an approved public Spotify client.
-Publishing source does not grant additional API access or permission.
 
 ## Local audio
 
