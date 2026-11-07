@@ -62,7 +62,8 @@ With `--exercise`, it will:
 1. Register a local device named **Phosrack WebEngine Probe**.
 2. Record the previous Spotify device and whether it was playing, in memory.
 3. Transfer the current playback context to the probe at 25% player volume.
-4. Sample playback position, pause, resume and seek forward briefly.
+4. Sample playback position, pause, resume and seek five seconds forward (or
+   backward when near the end of a track).
 5. Attempt to restore playback to the original device and its original play/pause
    state. It does not rewind the music to its starting position.
 
@@ -95,6 +96,9 @@ A Linux host pass does not establish Windows compatibility, redistributable DRM
 availability, Flatpak compatibility, public Spotify API access, or permission for
 Phosrack's complete feature set. The current released application still uses an
 external Spotify player.
+
+See [the recorded Linux results](RESULTS.md) for the authenticated playback test
+and the remaining validation work.
 
 ## Primary documentation
 

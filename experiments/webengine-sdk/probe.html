@@ -35,7 +35,13 @@ async function runExercise(){
   for(let n=0;n<4;n++){const s=await player.getCurrentState();if(s)report('state',stateData(s));await sleep(1500);}
   await player.pause();await sleep(1500);let s=await player.getCurrentState();report('exercise_pause',{ok:!!s?.paused});
   await player.resume();await sleep(2500);s=await player.getCurrentState();report('exercise_resume',{ok:!!s&&!s.paused});
-  if(s&&s.duration>20000){const target=Math.min(s.position+5000,s.duration-10000);await player.seek(target);await sleep(1200);const after=await player.getCurrentState();report('exercise_seek',{ok:!!after&&Math.abs(after.position-target)<4000});}
+  if(s&&s.duration>20000){
+   const target=s.position+5000<s.duration-10000?s.position+5000:Math.max(0,s.position-5000);
+   await player.seek(target);const seekStarted=performance.now();await sleep(1200);
+   const after=await player.getCurrentState();
+   const expected=target+(after&&!after.paused?performance.now()-seekStarted:0);
+   report('exercise_seek',{ok:!!after&&Math.abs(after.position-expected)<1500});
+  }
  }catch(e){report('js_error');}
  finally {report('exercise_finished');bridge.restore();}
 }
