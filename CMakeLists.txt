@@ -6,8 +6,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(GNUInstallDirs)
 include(CTest)
-set(PHOSRACK_SPOTIFY_CLIENT_ID "704734d0b36946a78b98d9e5a6733cfa" CACHE STRING
-    "Public Spotify application Client ID bundled with Phosrack; empty disables the default")
+set(PHOSRACK_SPOTIFY_CLIENT_ID "" CACHE STRING
+    "Optional public Spotify application Client ID for a private build; users configure their own by default")
 if(NOT PHOSRACK_SPOTIFY_CLIENT_ID STREQUAL "")
     string(LENGTH "${PHOSRACK_SPOTIFY_CLIENT_ID}" PHOSRACK_SPOTIFY_CLIENT_ID_LENGTH)
     if(NOT PHOSRACK_SPOTIFY_CLIENT_ID_LENGTH EQUAL 32 OR

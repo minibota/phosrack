@@ -52,6 +52,15 @@ class SpotifyClientTest : public QObject {
         client.m_track={{"canControl",true},{"canToggle",true},{"canVolume",true},{"canSeek",true},{"playing",true},{"duration",100000}};
     }
 private slots:
+    void unconfiguredApplicationDoesNotStartSignIn() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        if(client.hasDefaultClientId())QSKIP("This private build supplies a default application.");
+        client.connectSpotify();
+        QVERIFY(!client.authorized());QVERIFY(!client.busy());
+        QVERIFY(!client.m_callback.isListening());
+        QVERIFY(client.error().contains("32-character Client ID"));
+        QVERIFY(transport.requests.isEmpty());
+    }
     void compiledDefaultAndStableAssignmentsPreserveSession() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
         const auto compiled=QString::fromLatin1(Phosrack::BuildConfig::SpotifyClientId);
@@ -122,11 +131,11 @@ private slots:
         testClient.setClientId(QString(32,'e'));
         QCOMPARE(settings.value("spotify/clientId").toString(),legacy);
     }
-    void defaultApplicationAccessDenialExplainsDevelopmentAllowlist() {
+    void accessDenialExplainsDevelopmentAllowlistForPersonalApplications() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
         transport.responses.enqueue({403,"{}"});client.refreshState();QTRY_VERIFY(!client.m_polling);
-        if(client.hasDefaultClientId())QVERIFY(client.error().contains("authorized tester"));
-        else QVERIFY(client.error().contains("Premium"));
+        QVERIFY(client.error().contains("allowed to use this developer application"));
+        QVERIFY(client.error().contains("Premium"));
         QVERIFY(!client.collectionBusy());
     }
     void playbackRequestsAreRealApiShapes() {

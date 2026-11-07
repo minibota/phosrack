@@ -8,20 +8,25 @@ installed application needs no source checkout or machine-wide QML plugin paths.
 App.qml owns the window. PhosrackView.qml owns long-lived session/audio/settings
 objects and reorders only the player, equalizer, visualizer and music presentations.
 RackPanel.qml implements folding and header/arrow reordering. MusicBrowser.qml
-contains search, queue and library views. SettingsDialog.qml offers Connect Spotify with advanced OAuth
-configuration, output override, motion preference and Spotify device transfer.
+contains search, queue and library views. SettingsDialog.qml offers personal Spotify
+application setup and Connect Spotify, output override, motion preference and Spotify device transfer.
 The window has no outer scrolling view; lists and Settings scroll independently.
 
 SpotifyClient uses asynchronous HTTPS requests, PKCE browser authorization and
-a loopback callback. CMake's PHOSRACK_SPOTIFY_CLIENT_ID supplies a public default
-application ID on every platform. An explicit user override is stored separately
-from that build default; normal sign-in still authorizes each user's own account.
-No developer account credentials or Client Secret are embedded. Refresh tokens use KWallet on Linux or Windows Credential Manager when available; access
+a loopback callback. CMake's PHOSRACK_SPOTIFY_CLIENT_ID defaults to an empty string
+on every platform, so current source builds ask each user for their own public
+application ID. The setting is persisted locally. Private builds can optionally
+supply a compiled default; user overrides remain separate from that build default.
+Each sign-in authorizes the user's own account. No developer account credentials or
+Client Secret are embedded. Refresh tokens use KWallet on Linux or Windows Credential Manager when available; access
 tokens remain in memory. Session generations discard replies after cancellation,
 while independent search/library generations reject stale collection responses.
 Playback polling is slower when hidden; rate-limit responses enforce backoff.
 Normalized collection maps let QML render tracks, albums and playlists consistently.
 Collection and playback capabilities are constrained by Spotify's current API.
+Playback commands control an external Spotify app, web player or Connect device.
+The application has no integrated streaming engine. Existing v0.3.1 packages predate
+the empty Client ID default and retain their original shared-ID behavior.
 
 The Linux AudioAnalyzer resolves PipeWire's actual default.audio.sink metadata every two
 seconds while active. An empty source preference means automatic routing. Explicit

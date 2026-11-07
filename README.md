@@ -30,7 +30,8 @@ Phosrack in English with Spotify playback, the equalizer, live spectrum visualiz
 - Orbit, Spectrum and Oscilloscope visualization, reduced motion, fullscreen mode,
   and an overlay for the current and next track.
 - English, Spanish and French selected from the system language; English fallback.
-- Connect Spotify directly using browser authorization with PKCE; no Client ID setup for normal use.
+- Connect your own Spotify developer application using a public Client ID and browser
+  authorization with PKCE; no Client Secret is needed.
 - Protected session storage: KWallet on Linux and Windows Credential Manager on Windows.
 
 The application embeds its QML, icon and translation catalogs. It does not require
@@ -49,13 +50,14 @@ no private Spotify APIs, borrowed application credentials or librespot are used.
 
 Before installing, please be aware of these current limitations:
 
-- **Spotify Free playback controls are not supported.** The built-in Client ID
-  simplifies sign-in; it does not unlock Premium features or bypass Spotify's
+- **Spotify Free playback controls are not supported.** Supplying a Client ID
+  does not unlock Premium features or bypass Spotify's
   [playback requirements](https://developer.spotify.com/documentation/web-api/reference/start-a-users-playback).
-- **Spotify access is limited to authorized testers.** The bundled Spotify
-  application is in development mode, with up to five allowlisted users. Downloading
-  Phosrack or completing browser sign-in does not automatically grant API access,
-  even with Premium. See [Spotify setup and scope](#spotify-setup-and-scope).
+- **Personal Spotify application setup is required.** Current source builds use
+  each user's own Client ID. Spotify's development-mode limits still apply to that
+  application, including up to five authorized users. Public downloads and browser
+  sign-in alone do not grant API access. See [Spotify setup and scope](#spotify-setup-and-scope),
+  including the instructions for existing v0.3.1 packages.
 - **No offline playback or music downloads.** Spotify playback and API features
   require an internet connection; Phosrack cannot download songs or play them offline.
 - **The visualizer and EQ work with local audio only.** They cannot visualize or
@@ -87,23 +89,40 @@ Windows compilation does not by itself verify WASAPI or Equalizer APO on real ha
 
 ## Spotify setup and scope
 
-Open Settings, click **Connect Spotify** and authorize your own Spotify account in
-your browser. Release builds include Phosrack's public Client ID; you do not need to
-create a developer application or enter credentials in Phosrack. Each person signs
-in to their own account. A Client Secret is never required.
+**Use your own Spotify developer application for personal use.** Current source
+builds do not include a shared Client ID. You configure your public application ID
+once; Phosrack remembers it and uses PKCE to sign in to your own Spotify account.
+A Client ID identifies an application, not your password. Never paste a Client Secret
+or an access token into that field.
 
-The bundled application is in Spotify development mode. Its owner must retain
-Premium, and Spotify limits new development applications to five authenticated
-users who must be added to the application's allowlist. Being able to open the
-login page does not grant API access. Public downloads do not remove these limits;
-see [Spotify's quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
-Playback controls also require Premium and an active Spotify playback device.
+1. Sign in to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   with your Premium account and create or select an application for your personal
+   Phosrack setup.
+2. Enable **Web API** and register this redirect URI exactly:
+   `http://127.0.0.1:43821/callback`.
+3. Copy the application's **Client ID**. Open Phosrack Settings, expand
+   **Spotify application setup** if needed, and paste it into **Client ID (no Client Secret)**.
+4. Click **Connect Spotify** and authorize the same Spotify account in your browser.
+5. Open the official Spotify app or web player and start playback. Keep that player
+   running while controlling it from Phosrack.
 
-Developers can expand **Advanced Spotify settings** in Settings to use their own
-application. Enable Web API and register exactly `http://127.0.0.1:43821/callback`
-in its Developer Dashboard.
-For your own builds, override the public ID at configuration time with
-`-DPHOSRACK_SPOTIFY_CLIENT_ID=YOUR_32_CHARACTER_CLIENT_ID`; see the
+> [!NOTE]
+> **Existing v0.3.1 installers still contain the earlier shared development ID.**
+> Those packages have not been replaced by this source change. In v0.3.1, expand
+> **Settings > Advanced Spotify settings**, replace the displayed Client ID with
+> your own, then connect again. The redirect URI above is unchanged.
+
+Spotify requires the owner of a development-mode application to retain Premium;
+playback controls also require Premium for the listening account. Each new development
+application allows up to five authenticated users. If you authorize another account,
+add it in your application's **Users Management** allowlist first. Successful browser
+login alone does not grant API access to an unlisted user.
+
+Personal application setup avoids depending on Phosrack's shared tester list; it
+does **not** remove Spotify's per-application limits or grant public access to your
+application. Extended access requires Spotify approval under its partner eligibility
+rules. See [Spotify's quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+For optional build-time configuration of your own application ID, see the
 [packaging guide](docs/packaging.md#spotify-application-configuration).
 
 The requested permissions cover playback, saved library and playlists. Older 0.1
@@ -132,7 +151,7 @@ Debian 13 build dependencies:
 
 Then build and run:
 
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPHOSRACK_SPOTIFY_CLIENT_ID=
     cmake --build build --parallel
     ctest --test-dir build --output-on-failure
     ./build/phosrack

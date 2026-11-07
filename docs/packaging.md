@@ -7,35 +7,52 @@ do not bundle the host's Qt/KDE libraries. Its desktop ID is `io.phosrack.Phosra
 
 ## Spotify application configuration
 
-All targets use the same CMake default public Client ID, including native Linux,
-Windows and Flatpak. Release builds therefore offer **Connect Spotify** directly.
+Current source builds default to **no bundled Spotify Client ID** on Linux,
+Windows and Flatpak. Each user enters their own public ID under
+**Settings > Spotify application setup**, then completes PKCE browser authorization.
 The ID identifies an application; it is not an account password, access token or
-Client Secret. Each user completes their own PKCE browser authorization.
+Client Secret. The application remembers the user's setting.
 
-For a fork or another developer application, override the default:
+To ensure a build has no bundled ID, including when reusing a build directory:
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DPHOSRACK_SPOTIFY_CLIENT_ID=
+```
+
+CMake caches this value. An existing build directory from v0.3.1 may still contain
+the earlier shared ID; changing the source default does not clear that cache.
+Set the value explicitly as above or use a fresh build directory.
+
+For a private build or fork using your own developer application, an optional
+build-time default remains available:
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DPHOSRACK_SPOTIFY_CLIENT_ID=YOUR_32_CHARACTER_CLIENT_ID
 ```
 
-An explicit empty value, `-DPHOSRACK_SPOTIFY_CLIENT_ID=`, builds without a bundled
-application ID and leaves manual configuration in Settings > Advanced Spotify settings. A cached
-CMake value persists when reconfiguring an existing build directory; set the value
-explicitly or use a fresh build directory when changing the intended application.
+When a build supplies a default, users can override it under
+**Settings > Advanced Spotify settings**. Bundling your ID does not grant public
+access to that application: its own Spotify development-mode allowlist and Premium
+requirements still apply.
 
 For Flatpak forks, add the same `-DPHOSRACK_SPOTIFY_CLIENT_ID=...` entry to the
-application module's `config-opts`. The shipped manifest inherits CMake's default.
+application module's `config-opts`. The source manifest inherits the empty CMake default.
 Register `http://127.0.0.1:43821/callback` for the selected application. Never compile
-or distribute a Client Secret. Bundling a public ID does not expand Spotify's
+or distribute a Client Secret. Personal application setup does not expand Spotify's
 [development-mode access](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+
+The existing downloadable **v0.3.1 installers are unchanged** and still contain the
+earlier shared ID. Their users should replace it with their own under
+**Settings > Advanced Spotify settings**. See the [setup instructions](../GETTING_STARTED.md#connect-spotify).
 
 ## RPM
 
 Build on Fedora 45 with the dependencies from README, then:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPHOSRACK_SPOTIFY_CLIENT_ID=
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 (cd build && cpack -G RPM)

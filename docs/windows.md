@@ -21,7 +21,7 @@ Install Visual Studio 2022 with Desktop development with C++, Qt 6.8.3 MSVC x64,
 CMake, Ninja and NSIS. Use a native x64 MSVC developer PowerShell with Qt's bin
 directory on PATH:
 
-    cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release
+    cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DPHOSRACK_SPOTIFY_CLIENT_ID=
     cmake --build build-win --parallel 2
     ctest --test-dir build-win --output-on-failure
     ./packaging/windows/package.ps1
@@ -34,13 +34,22 @@ The portable ZIP can be extracted into a user-writable folder. The installer use
 the normal Windows application installation flow. Development packages are unsigned;
 a public release should use its publisher's trusted code-signing identity.
 
-The standard build includes Phosrack's public Spotify application ID. Users click
-**Connect Spotify** and authorize their own account; developer overrides are under
-Settings > Advanced Spotify settings. For a fork, add
-`-DPHOSRACK_SPOTIFY_CLIENT_ID=YOUR_32_CHARACTER_CLIENT_ID` to the first CMake command.
-The deployment/package reconfigure preserves that cached value. See
-[application configuration](packaging.md#spotify-application-configuration) for
-Spotify access restrictions and builds without a bundled ID.
+Current source builds have no bundled Spotify application ID. Users configure
+their own public Client ID under **Settings > Spotify application setup**, then
+click **Connect Spotify** and authorize their Premium account. Follow the
+[setup instructions](../GETTING_STARTED.md#connect-spotify), including the exact
+loopback redirect URI. A Client Secret is never needed.
+
+The published v0.3.1 installer and portable ZIP still contain the earlier shared
+ID; in those versions, use **Settings > Advanced Spotify settings** to replace it
+with your own. The source change does not replace those downloads.
+
+For a private build or fork, replace the empty CMake option above with
+`-DPHOSRACK_SPOTIFY_CLIENT_ID=YOUR_32_CHARACTER_CLIENT_ID` if you want to bundle your
+own public ID. The deployment/package reconfigure preserves that cached value.
+An older build cache can retain the previous ID, so set the option explicitly when
+reconfiguring. See [application configuration](packaging.md#spotify-application-configuration)
+for the remaining Spotify access restrictions.
 
 ## Equalizer APO
 

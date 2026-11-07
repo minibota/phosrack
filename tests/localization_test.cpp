@@ -18,11 +18,13 @@ private slots:
         auto *application = QCoreApplication::instance();
         setupLocalization(*application, "es");
         QCOMPARE(QCoreApplication::translate("PhosrackView", "Settings"), QString("Ajustes"));
+        QCOMPARE(QCoreApplication::translate("SettingsDialog", "Spotify application setup"), QString::fromUtf8("Configurar aplicación de Spotify"));
         for(auto *translator:application->findChildren<QTranslator*>()) {
             application->removeTranslator(translator);delete translator;
         }
         setupLocalization(*application, "fr");
         QCOMPARE(QCoreApplication::translate("PhosrackView", "Settings"), QString::fromUtf8("Paramètres"));
+        QCOMPARE(QCoreApplication::translate("SettingsDialog", "Spotify application setup"), QString::fromUtf8("Configurer l’application Spotify"));
     }
 };
 QTEST_GUILESS_MAIN(LocalizationTest)

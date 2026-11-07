@@ -1,4 +1,4 @@
-# Getting started with Phosrack 0.3.1
+# Getting started with Phosrack
 
 Phosrack is a QML + C++ desktop music rack with playback controls, search, queue,
 library, a local equalizer and fullscreen visualization. The interface follows the
@@ -36,30 +36,42 @@ See [docs/packaging.md](docs/packaging.md) for build instructions and dependenci
 
 ## Connect Spotify
 
-1. Open Settings and click **Connect Spotify**.
-2. Sign in to your own Spotify account and authorize Phosrack in the browser.
-3. Open Spotify and start playback on a device.
+You need **Spotify Premium** and your own Spotify developer application's public
+**Client ID**. This is a one-time setup; Phosrack remembers your ID. Current source
+builds have no shared default ID.
 
-Release builds include Phosrack's public application ID. You do not need to create
-a developer application, enter a Client ID or share the developer's Spotify account.
-Session credentials use protected operating-system storage when available.
-Disconnect removes the saved token. A Client Secret is never needed.
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   using your Premium account. Create or select an application for your personal
+   Phosrack installation.
+2. Enable **Web API** and add exactly `http://127.0.0.1:43821/callback` to its
+   redirect URIs. Save the application settings.
+3. Copy its **Client ID**, not its Client Secret. In Phosrack Settings, open
+   **Spotify application setup** and paste it into **Client ID (no Client Secret)**.
+4. Click **Connect Spotify**, then authorize the same account in your browser.
+5. Start playback in the official Spotify desktop app or
+   [web player](https://open.spotify.com/), and leave it running in the background.
+   Phosrack controls that player; it does not stream Spotify audio itself.
 
-The bundled app is in Spotify development mode: its owner must have Premium, and
-new apps allow up to five authenticated users on the developer's allowlist. If your
-account is not allowed, browser login alone will not enable API requests. See
-[Spotify's access rules](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
-Premium and an active Spotify device are also required for playback controls.
+**Using the downloadable v0.3.1 package?** It still has the earlier shared ID and
+calls the setup section **Advanced Spotify settings**. Expand that section, replace
+the displayed ID with your own, then connect again. The current source change does
+not update already published installers or an installed copy automatically.
 
-### Advanced: use your own Spotify app
+The public Client ID identifies your application; it is not a password. Never enter
+a Client Secret or access token. Session credentials use protected operating-system
+storage when available. Disconnect removes the saved token.
 
-Developers can create an application in the
-[Spotify Developer Dashboard](https://developer.spotify.com/dashboard), enable Web API
-and register exactly `http://127.0.0.1:43821/callback`. Expand **Advanced Spotify settings** in Phosrack
-Settings to enter that application's public Client ID, then connect again. Spotify's
-access restrictions still apply to your own application.
+Your development application's owner must retain Premium, and playback controls
+require Premium for the listening account. Spotify permits up to five authenticated
+users per new development application. If signing in with a different account,
+add it under **Users Management** in your application's dashboard. Browser sign-in
+can succeed while API access remains blocked for an unlisted account.
 
-To supply another default when compiling, see
+Using your own application avoids relying on Phosrack's shared tester list, but
+does not remove Spotify's limits or approve the application for public access.
+See [Spotify's access rules](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+
+To supply an optional default when compiling your own build, see
 [Spotify application configuration](docs/packaging.md#spotify-application-configuration).
 
 ## Equalizer

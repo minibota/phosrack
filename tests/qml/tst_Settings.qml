@@ -10,7 +10,7 @@ TestCase {
     visible: true; width: 520; height: 760
     QtObject {
         id: account
-        readonly property string defaultId: "704734d0b36946a78b98d9e5a6733cfa"
+        readonly property string defaultId: "11111111111111111111111111111111"
         property string clientId: defaultId
         property bool hasDefaultClientId: true
         property bool usesDefaultClientId: hasDefaultClientId && clientId === defaultId
@@ -77,6 +77,16 @@ TestCase {
         compare(account.busy, false)
         view.close()
     }
+    function test_optionalBundledIdIsNeverDisplayedInAdvancedSettings() {
+        const view = dialog()
+        mouseClick(findChild(view, "advancedSpotifyButton"))
+        const field = findChild(view, "spotifyClientIdField")
+        tryCompare(field, "visible", true)
+        compare(field.text, "")
+        clickConnect(view)
+        compare(account.connectedId, account.defaultId)
+        view.close()
+    }
     function test_connectUsesEffectiveIdRatherThanAnUneditedStaleField() {
         const view = dialog()
         const field = findChild(view, "spotifyClientIdField")
@@ -103,7 +113,7 @@ TestCase {
         account.busy = false
         findChild(view, "resetSpotifyClientIdButton").clicked()
         compare(account.clientId, account.defaultId)
-        compare(field.text, account.defaultId)
+        compare(field.text, "")
         view.close()
     }
     function test_missingDefaultExpandsAdvancedAndValidationStaysDisconnected() {
@@ -116,6 +126,21 @@ TestCase {
         verify(!account.busy)
         compare(account.error, "Invalid Client ID")
         compare(findChild(view, "connectSpotifyButton").text, "Connect Spotify")
+        view.close()
+    }
+    function test_personalApplicationSetupConnectsWithEnteredId() {
+        account.hasDefaultClientId = false; account.clientId = ""
+        const view = dialog()
+        verify(view.advancedSpotifyExpanded)
+        verify(findChild(view, "advancedSpotifyButton").text.includes("Spotify application setup"))
+        const field = findChild(view, "spotifyClientIdField")
+        compare(field.text, "")
+        compare(findChild(view, "resetSpotifyClientIdButton").visible, false)
+        field.forceActiveFocus()
+        for (let i = 0; i < 32; ++i) keyClick(Qt.Key_C)
+        clickConnect(view)
+        compare(account.connectedId, "cccccccccccccccccccccccccccccccc")
+        compare(account.connections, 1)
         view.close()
     }
     function test_accountChangesAreDisabledWhileConnectedOrBusy() {

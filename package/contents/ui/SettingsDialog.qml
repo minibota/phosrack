@@ -14,7 +14,7 @@ Dialog {
     property bool clientDraftModified: false
     signal motionPreferenceChanged(bool reduced)
     function syncClientDraft() {
-        if (!clientDraftModified) clientField.text = spotify.clientId
+        if (!clientDraftModified) clientField.text = spotify.usesDefaultClientId ? "" : spotify.clientId
     }
     function applyClientDraft() {
         if (!clientDraftModified) return true
@@ -61,7 +61,7 @@ Dialog {
         ColumnLayout {
             width: settingsScroll.availableWidth; spacing: 10
             Text { text: "SPOTIFY"; color: "#baff74"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 13 }
-            Text { Layout.fillWidth: true; visible: !spotify.authorized; text: qsTr("Sign in with your Spotify account in your browser, then return to Phosrack."); color: "#b3bda9"; font.pixelSize: 12; wrapMode: Text.Wrap }
+            Text { Layout.fillWidth: true; visible: !spotify.authorized; text: spotify.hasDefaultClientId ? qsTr("Sign in with your Spotify account in your browser, then return to Phosrack.") : qsTr("Create your own Spotify developer application, then enter its Client ID below. No Client Secret is needed."); color: "#b3bda9"; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
                 Layout.fillWidth: true
                 RackButton {
@@ -74,10 +74,10 @@ Dialog {
             }
             Text { Layout.fillWidth: true; text: spotify.error || spotify.status; color: spotify.error ? "#f0b99a" : "#baff74"; font.pixelSize: 11; wrapMode: Text.Wrap }
             Text { Layout.fillWidth: true; text: qsTr("Premium required. Your session is stored in %1 when available.").arg(spotify.credentialStorage); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
-            Text { Layout.fillWidth: true; text: qsTr("During testing, the app owner must allow your Spotify account."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+            Text { Layout.fillWidth: true; text: qsTr("Your Spotify account must be allowed to use the developer application you configure."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
             RackButton {
                 objectName: "advancedSpotifyButton"
-                text: (settings.advancedSpotifyExpanded ? "▾ " : "▸ ") + qsTr("Advanced Spotify settings")
+                text: (settings.advancedSpotifyExpanded ? "▾ " : "▸ ") + (spotify.hasDefaultClientId ? qsTr("Advanced Spotify settings") : qsTr("Spotify application setup"))
                 Layout.fillWidth: true
                 onClicked: settings.advancedSpotifyExpanded = !settings.advancedSpotifyExpanded
             }
@@ -85,8 +85,8 @@ Dialog {
                 objectName: "advancedSpotifyContent"
                 visible: settings.advancedSpotifyExpanded
                 Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: qsTr("Use your own Spotify application for a separate development setup."); color: "#b3bda9"; font.pixelSize: 11; wrapMode: Text.Wrap }
-                Text { Layout.fillWidth: true; text: spotify.usesDefaultClientId ? qsTr("Using the built-in Spotify application.") : qsTr("Using a custom Spotify application."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: qsTr("In the Spotify Developer Dashboard, create an app with Web API enabled and register the redirect URI below."); color: "#b3bda9"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; visible: spotify.clientId.length > 0; text: spotify.usesDefaultClientId ? qsTr("Using the built-in Spotify application.") : qsTr("Using your Spotify application."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
                 TextField {
                     id: clientField; objectName: "spotifyClientIdField"; Layout.fillWidth: true
                     placeholderText: spotify.hasDefaultClientId ? qsTr("Custom Client ID (empty uses the default)") : qsTr("Client ID (no Client Secret)")

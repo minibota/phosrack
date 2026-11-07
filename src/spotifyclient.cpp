@@ -308,9 +308,7 @@ void SpotifyClient::api(const QByteArray &method,const QString &path,const QJson
         }
         if(code<200||code>=300) {
             if(code==404)fail(path.startsWith("me/player")?tr("No Spotify device is active. Open Spotify and play a track first."):tr("This Spotify collection is unavailable."));
-            else if(code==403)fail(usesDefaultClientId()
-                ?tr("Spotify denied access. If this app is in development mode, your account must be an authorized tester. Also check Premium, permissions and the selected device.")
-                :tr("Spotify denied this action. Check Premium, permissions and the selected device. Reconnect to grant library access."));
+            else if(code==403)fail(tr("Spotify denied access. Check that your account is allowed to use this developer application, along with Premium, permissions and the selected device. Reconnect to grant library access."));
             else fail(tr("Could not contact Spotify. Playback state will be retried."));
             if(failed)failed();
             return;
