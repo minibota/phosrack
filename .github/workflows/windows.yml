@@ -70,7 +70,7 @@ jobs:
         run: ctest --test-dir build-win --output-on-failure
       - name: Deploy, validate and package
         shell: pwsh
-        run: ./packaging/windows/package.ps1 -BuildDirectory build-win -OutputDirectory dist
+        run: ./packaging/windows/package.ps1 -BuildDirectory build-win -OutputDirectory dist -VerifyInstaller
       - uses: actions/upload-artifact@v4
         with:
           name: phosrack-${{ env.PHOSRACK_RELEASE_VERSION }}-windows-x64
