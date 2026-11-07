@@ -9,25 +9,39 @@ by the user; it is not bundled.
 ## Release verification status
 
 This record separates source checks, package checks and real authenticated playback.
-**Release builds and runtime verification are in progress.** Pending rows must be
-updated with actual results and source/workflow references before representing them
-as completed. Successful historical tests are not results for this release.
+Linux package source: [`a9e9b1359e1789dd2868c9b88c9c5e2e367217a8`](https://github.com/minibota/phosrack/tree/a9e9b1359e1789dd2868c9b88c9c5e2e367217a8).
+Windows package source: [`4f048bcf4218d863f002bfd45d6eeb7c30b495f4`](https://github.com/minibota/phosrack/tree/4f048bcf4218d863f002bfd45d6eeb7c30b495f4),
+adding the Windows package-root correction and installer checks. The application
+source is unchanged; the Linux package prefix remains `/usr`. Later commits add
+release assets and document the results.
+Successful historical tests are not results for this release.
 
 | Check | Status | Evidence / scope |
 | --- | --- | --- |
 | SpotifyClient regression suite | Passed in isolated native test target | 26 QtTest results, including local-device command routing, streaming-grant migration, mode changes during authorization, readiness and remote takeover handling; no live credentials used |
-| Full application CTest / QML / localization suite | Passed locally | Native production application build passed all 18 CTest checks; final CI/source references pending |
-| Fedora 45 RPM | Pending | Final native build, package metadata and installed/extracted runtime checks required |
-| Debian 13 DEB | Pending | Target-distribution build and runtime checks required |
-| Windows x64 EXE / ZIP | Pending | Native MSVC build, deployed WebEngine resources and clean deployment smoke checks required |
+| Full application CTest / QML / localization suite | Passed | Native production build: 18/18 CTest checks. RPM and DEB CI: 17/17 each; their containers omit the optional Node bridge check, which passed locally |
+| Fedora 45 RPM | Passed | [CI build/test/package](https://github.com/minibota/phosrack/actions/runs/42321879284/job/128248095381); verified metadata, WebEngine dependencies and RPM payload digests; extracted executable reports 0.3.2 and passes French Settings / Spanish fullscreen smoke checks on Fedora |
+| Debian 13 DEB | Passed | [CI build/test/package](https://github.com/minibota/phosrack/actions/runs/42321879284/job/128248095454); installed in a clean Debian 13 container with runtime dependencies, without development SDKs; version, French Settings and Spanish fullscreen checks pass |
+| Windows x64 EXE / ZIP | Passed | [Corrected native CI](https://github.com/minibota/phosrack/actions/runs/42323150248): 17/17 CTest checks, final ZIP root/resource verification, silent NSIS installation, installed Settings/fullscreen launch with SDK paths removed, actual Start-menu shortcut target verification and uninstall all passed |
 | Native WebEngine runtime capabilities | Passed | Qt 6.11.2: secure loopback context, AAC/Opus/Vorbis decoding and Widevine MediaKeys creation with the existing Chrome module |
 | Flatpak BaseApp prerequisites | Preflight passed | KDE / Qt WebEngine BaseApp 6.10 initialized the native SDK/DRM prerequisites; this is not authenticated audio playback |
-| Flatpak final bundle | Pending | Clean build, isolated install, metadata and desktop runtime checks required |
+| Flatpak final bundle | Passed | Built locally from the exact release source, installed in an isolated workspace Flatpak root; packaged README matches source, Chromium resources are present, French Settings and Spanish fullscreen checks pass |
 | Native C++ integrated playback on Linux | Passed for basic playback | Production executable in an isolated profile authorized successfully; user confirmed audible audio and pause/resume. Closing the official player, seek and reconnect were not verified in this run |
-| Integrated playback inside Flatpak | Pending | Real authorization, local SDK device readiness and audible audio required |
-| Windows integrated playback / DRM | Not validated | Requires real Windows runtime with compatible existing Widevine and media codecs |
+| Integrated playback inside Flatpak | Prerequisites passed; listening not tested | Installed final bundle: Qt 6.10.3, secure loopback context, AAC/Opus/Vorbis decoding and Widevine MediaKeys creation passed. Authenticated Spotify audio has not been tested inside the sandbox |
+| Windows integrated playback / DRM | Experimental; listening not tested | Qt 6.8.3 CI probe: secure context, Opus/Vorbis decoding and Widevine MediaKeys creation pass; AAC decoding unavailable and AAC MediaKeys return NotSupportedError. No authenticated Spotify audio test. See [Windows capabilities](windows.md#verified-media-capabilities) |
 | Windows WASAPI / Equalizer APO hardware | Not validated | Requires a Windows desktop and separately configured APO installation |
-| Final artifact checksums and release publication | Pending | Record final source commit, CI run links and `releases/v0.3.2/` index |
+| Final artifact checksums | Passed | All five installers have SHA256 checksums and per-platform source/build references in the [release index](../releases/v0.3.2/README.md) |
+
+The final Flatpak bundle contains application commit
+`800b80db2718922c5765b27e2371a909da8c96a9c2ef1238a3ac2a186b972d6b`.
+Its WebEngine BaseApp branch is 6.10 and KDE runtime branch is 6.10. The existing
+Chrome Widevine module is exposed read-only; no Widevine binary is packaged.
+Normal user installations were not modified by package validation.
+
+The player display was also checked with actual Qt geometry at DPR 2 and widths
+360, 440 and 700: elapsed/total times remain inside the display with bottom padding,
+and long titles/artists elide. The maximize button and title-bar double-click
+maximization were removed; window resizing and visualizer fullscreen remain available.
 
 ## Fullscreen visualizer performance
 

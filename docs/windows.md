@@ -19,6 +19,19 @@ processing have not yet been validated for v0.3.2.** See the
 [validation notes](validation-0.3.2.md) for the exact checks completed. The audible
 Linux feasibility experiment does not establish Windows playback support on a given PC.
 
+## Verified media capabilities
+
+The Windows CI runtime probe for application source
+`4f048bcf4218d863f002bfd45d6eeb7c30b495f4` used Qt 6.8.3. It reported a secure
+loopback context, Opus/Vorbis decoding and successful Widevine MediaKeys creation
+for those formats. **AAC decoding is unavailable in this Qt build**, and AAC
+MediaKeys initialization returned `NotSupportedError`.
+
+These checks do not establish authenticated Spotify audio playback. Treat integrated
+Windows playback as experimental. If the player cannot initialize, select
+**Settings > Playback > Control another Spotify player** and keep that player open.
+Choosing a Widevine DLL does not add an audio decoder missing from the Qt build.
+
 ## Spotify and DRM setup
 
 v0.3.2 does not bundle a shared Spotify Client ID. Configure your own application in
@@ -54,7 +67,11 @@ directory on PATH:
 The script deploys Qt DLLs, QML imports, plugins and the compiler runtime. It also
 checks WebEngineProcess, Chromium resource packs and locale data, then runs the
 deployed tree with SDK PATH/search overrides removed. CPack creates ZIP and NSIS
-packages under `dist`. No KWallet or Linux PipeWire dependency is used by Windows.
+packages under `dist`, and the final ZIP layout is checked. The Windows workflow
+also passes `-VerifyInstaller`: it installs the NSIS package into a unique temporary
+folder, launches the installed app, validates the Start-menu shortcut target and
+uninstalls it. Normal local packaging does not run this installation check unless
+the switch is supplied. No KWallet or Linux PipeWire dependency is used by Windows.
 The workflow reports WebEngine codec configuration; that is diagnostic information,
 not a substitute for an authenticated playback test.
 

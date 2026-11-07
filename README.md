@@ -71,8 +71,10 @@ A few things to know before installing:
 - **Playback inside the app can need extra setup.** Finding Widevine does not
   guarantee it will work with your system's audio support. You can select an
   existing copy in Settings and restart Phosrack. Linux sound and pause/resume
-  have been tested; Windows listening tests and a complete Flatpak sign-in/listening
-  test are still pending. See [what has been tested](docs/validation-0.3.2.md) and
+  have been tested. Playback inside the Windows app is experimental: its included
+  audio support has limitations, and listening tests are still pending. Use the
+  other-player mode if music will not start. A complete Flatpak sign-in/listening
+  test is also pending. See [what has been tested](docs/validation-0.3.2.md) and
   [Qt's technical requirements](https://doc.qt.io/qt-6.8/qtwebengine-features.html#html5-drm).
 - **No offline listening or downloads.** Phosrack needs an internet connection
   to play Spotify music and browse your account.
