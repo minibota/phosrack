@@ -34,6 +34,8 @@ class SpotifyClient : public QObject {
     Q_PROPERTY(bool hasMoreLibrary READ hasMoreLibrary NOTIFY libraryChanged)
     Q_PROPERTY(QString libraryView READ libraryView NOTIFY libraryChanged)
     Q_PROPERTY(QString credentialStorage READ credentialStorage CONSTANT)
+    Q_PROPERTY(bool integratedPlayback READ integratedPlayback WRITE setIntegratedPlayback NOTIFY integratedPlaybackChanged)
+    Q_PROPERTY(bool localPlaybackReady READ localPlaybackReady NOTIFY localPlaybackReadyChanged)
 public:
     explicit SpotifyClient(QObject *parent=nullptr, QNetworkAccessManager *transport=nullptr);
     ~SpotifyClient() override;
@@ -63,6 +65,14 @@ public:
 #endif
     }
     void setActive(bool value);
+    bool integratedPlayback() const { return m_integratedPlayback; }
+    bool localPlaybackReady() const { return m_integratedPlayback && !m_localDeviceId.isEmpty(); }
+    void setIntegratedPlayback(bool value);
+    // Native bridge only: never expose access tokens as QML properties or invokables.
+    QByteArray accessTokenForPlayback() const { return m_streamingAuthorized ? m_accessToken : QByteArray(); }
+    void setLocalPlaybackDevice(const QString &deviceId);
+    void clearLocalPlaybackDevice();
+    void updateLocalPlaybackState(const QVariantMap &state);
     Q_INVOKABLE void connectSpotify();
     Q_INVOKABLE void disconnectSpotify();
     Q_INVOKABLE void resetToDefaultClientId();
@@ -95,6 +105,10 @@ signals:
     void queueChanged();
     void libraryChanged();
     void collectionsChanged();
+    void integratedPlaybackChanged();
+    void localPlaybackReadyChanged();
+    void accessTokenChanged();
+    void localPlaybackCommand(const QString &action, const QVariant &value);
 private:
     friend class SpotifyClientTest;
     using Result=std::function<void(const QJsonObject &,int)>;
@@ -114,18 +128,25 @@ private:
     void forgetRefresh();
     void clearCollections();
     void requestLibrary(bool more);
+    bool playbackCommandAllowed();
+    QString playbackPath(const QString &path) const;
+    bool hasStreamingGrant(const QString &scopes) const;
+    QString streamingGrantKey() const;
+    void requireStreamingAuthorization();
     QNetworkAccessManager *m_network;
     QTcpServer m_callback;
     QTimer m_poll,m_refresh,m_loginTimeout,m_clock;
-    QElapsedTimer m_positionClock;
+    QElapsedTimer m_positionClock,m_localPositionClock;
 #ifndef Q_OS_WIN
     QPointer<KWallet::Wallet> m_wallet;
 #endif
     QSettings m_settings;
     const QString m_defaultClientId;
     QString m_clientId,m_status,m_error;
+    QString m_localDeviceId;
     QByteArray m_accessToken,m_refreshToken,m_verifier,m_oauthState;
     QVariantMap m_track;
+    QVariantMap m_localTrack;
     QVariantList m_devices;
     QVariantList m_searchResults,m_queueItems,m_libraryItems;
     QString m_searchQuery,m_libraryView,m_libraryPath;
@@ -135,4 +156,7 @@ private:
     int m_generation=0;
     qint64 m_backoffUntil=0;
     bool m_connecting=false,m_refreshing=false,m_polling=false,m_command=false,m_active=true;
+    bool m_integratedPlayback=true,m_streamingAuthorized=false,m_reauthorizeStreaming=false,m_oauthStreamingRequested=false;
+    bool m_localPlaybackActive=false;
+    int m_localVolume=50;
 };

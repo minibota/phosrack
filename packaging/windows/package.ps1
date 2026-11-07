@@ -18,8 +18,23 @@ if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 & cmake --install $build --config Release --prefix $stage
 if ($LASTEXITCODE -ne 0) { throw "Application installation failed" }
 $exe = Join-Path $stage "phosrack.exe"
-& $deploy.Source --release --qmldir (Join-Path $project "package/contents/ui") --compiler-runtime --translations en,es,fr $exe
+& $deploy.Source --release --webenginecore --webchannel --qmldir (Join-Path $project "package/contents/ui") --compiler-runtime --translations en,es,fr $exe
 if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
+
+# A working QML shell alone does not prove the Chromium deployment is complete.
+foreach ($relative in @(
+    "Qt6WebEngineCore.dll", "Qt6WebChannel.dll", "QtWebEngineProcess.exe",
+    "resources/qtwebengine_resources.pak", "resources/qtwebengine_resources_100p.pak",
+    "resources/qtwebengine_resources_200p.pak", "resources/icudtl.dat",
+    "resources/v8_context_snapshot.bin", "translations/qtwebengine_locales/en-US.pak"
+)) {
+    if (-not (Test-Path (Join-Path $stage $relative))) {
+        throw "Missing Qt WebEngine deployment file: $relative"
+    }
+}
+if (Get-ChildItem $stage -Recurse -File -Filter "widevinecdm.dll") {
+    throw "Widevine must not be redistributed in Phosrack packages"
+}
 
 # Include the CRT app-locally so the portable package does not assume prior setup.
 if (-not $env:VCToolsRedistDir) { throw "Run in the MSVC developer environment (VCToolsRedistDir missing)" }
@@ -45,6 +60,10 @@ https://download.qt.io/archive/qt/
 https://www.qt.io/licensing/open-source-lgpl-obligations
 Microsoft Visual C++ runtime DLLs are redistributed from the installed MSVC SDK.
 The optional Equalizer APO driver is not included.
+Qt WebEngine includes Chromium and third-party components covered by their
+respective licenses: https://doc.qt.io/qt-6/qtwebengine-licensing.html
+Widevine is not included. Integrated Spotify playback needs a compatible
+separately installed Widevine CDM; see Phosrack's setup documentation.
 "@ | Set-Content -Encoding UTF8 (Join-Path $licenses "Third-party-notices.txt")
 
 # Test the deployed tree without the SDK's PATH or QML/plugin search overrides.

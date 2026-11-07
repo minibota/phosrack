@@ -1,0 +1,91 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en"><meta charset="utf-8"><title>Phosrack playback</title>
+<script src="qwebchannel.js"></script>
+<script>
+'use strict';
+let bridge,player,deviceId='',volume=50,lastState=null,authBlocked=false,aacSupported=true;
+const report=(event,data={})=>bridge.report(event,data);
+function publishState(state){
+ lastState=state;
+ if(!state){report('state',{active:false,volume});return;}
+ const track=state.track_window?.current_track;
+ const blocked=state.disallows||{};
+ const uri=track?.uri||'';
+ const type=uri.split(':')[1],id=uri.split(':')[2];
+ report('state',{
+  active:!!track,playing:!state.paused,position:state.position||0,duration:state.duration||0,volume,
+  uri,title:track?.name||'',artist:(track?.artists||[]).map(a=>a.name).join(', '),
+  album:track?.album?.name||'',art:track?.album?.images?.[0]?.url||'',
+  url:/^(track|episode)$/.test(type)&&/^[A-Za-z0-9]{22}$/.test(id)?`https://open.spotify.com/${type}/${id}`:'',
+  shuffle:!!state.shuffle,repeat:['off','context','track'][state.repeat_mode]||'off',
+  canControl:!!track,canToggle:!!track&&!blocked[state.paused?'resuming':'pausing'],
+  canNext:!!track&&!blocked.skipping_next,canPrevious:!!track&&!blocked.skipping_prev,
+  canSeek:!!track&&state.duration>0&&!blocked.seeking,canVolume:true,
+  canShuffle:!!track&&!blocked.toggling_shuffle,
+  canRepeat:!!track&&!blocked.toggling_repeat_context&&!blocked.toggling_repeat_track
+ });
+}
+function startPlayer(){
+ if(player)return;
+ authBlocked=false;
+ player=new Spotify.Player({name:'Phosrack',volume:volume/100,getOAuthToken:callback=>bridge.getToken(callback)});
+ for(const event of ['initialization_error','authentication_error','account_error','playback_error','autoplay_failed'])
+  player.addListener(event,()=>{if(event==='authentication_error')authBlocked=true;report(event==='initialization_error'&&!aacSupported?'codec_initialization_error':event);});
+ player.addListener('ready',data=>{deviceId=data.device_id;report('ready',{deviceId});});
+ player.addListener('not_ready',()=>{deviceId='';lastState=null;report('not_ready');});
+ player.addListener('player_state_changed',publishState);
+ player.connect().then(ok=>{if(!ok)report('connection_error');}).catch(()=>report('connection_error'));
+}
+async function control(action,value){
+ if(!player||!deviceId){report('command_finished',{action,ok:false});return;}
+ try{
+  switch(action){
+   case 'activate':await player.activateElement();break;
+   case 'pause':await player.pause();break;
+   case 'resume':await player.activateElement();await player.resume();break;
+   case 'next':await player.nextTrack();break;
+   case 'previous':await player.previousTrack();break;
+   case 'seek':await player.seek(Math.round(value));break;
+   case 'volume':await player.setVolume(value/100);volume=Math.round(await player.getVolume()*100);publishState(lastState);break;
+   default:return;
+  }
+  report('command_finished',{action,ok:true});
+ }catch(e){report('command_finished',{action,ok:false});}
+}
+new QWebChannel(qt.webChannelTransport,async channel=>{
+ bridge=channel.objects.playback;
+ bridge.commandRequested.connect(control);
+ bridge.tokenUpdated.connect(()=>{
+  if(authBlocked&&player){player.disconnect();player=null;deviceId='';startPlayer();}
+ });
+ const audio=document.createElement('audio');
+ const available={secureContext:isSecureContext,eme:!!navigator.requestMediaKeySystemAccess,
+  aac:!!audio.canPlayType('audio/mp4; codecs="mp4a.40.2"'),
+  vorbis:!!audio.canPlayType('audio/ogg; codecs="vorbis"'),
+  opus:!!audio.canPlayType('audio/webm; codecs="opus"'),widevine:false};
+ aacSupported=available.aac;
+ try{
+  if(!isSecureContext||!navigator.requestMediaKeySystemAccess)throw new Error('DRM');
+  let supported=false;
+  for(const contentType of ['audio/mp4; codecs="mp4a.40.2"','audio/webm; codecs="opus"']){
+   try{
+    const access=await navigator.requestMediaKeySystemAccess('com.widevine.alpha',[
+     {initDataTypes:['cenc'],audioCapabilities:[{contentType,robustness:'SW_SECURE_CRYPTO'}]}
+    ]);
+    await access.createMediaKeys();supported=true;available.widevine=true;break;
+   }catch(e){}
+  }
+  if(!supported)throw new Error('DRM');
+ }catch(e){report('capabilities',available);report('drm_unavailable');return;}
+ report('capabilities',available);
+ window.onSpotifyWebPlaybackSDKReady=startPlayer;
+ const sdk=document.createElement('script');sdk.src='https://sdk.scdn.co/spotify-player.js';
+ sdk.onerror=()=>report('sdk_load_error');document.head.appendChild(sdk);
+ // Keep native playback position/volume in sync even when the window is minimized.
+ setInterval(async()=>{
+  if(!player||!deviceId)return;
+  try{volume=Math.round(await player.getVolume()*100);publishState(await player.getCurrentState());}catch(e){}
+ },1000);
+});
+</script></html>

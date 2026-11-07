@@ -12,7 +12,7 @@ Item {
     property bool visualizerFolded: settingsStore.read("desktop/folded/visualizer", false)
     property bool browserFolded: settingsStore.read("desktop/folded/browser", false)
     property var browserNavigation: ({})
-    SpotifyClient { id: session; active: rack.pollingActive || fullVisualizer.presentationActive }
+    SpotifyClient { id: session; objectName: "spotifySession"; active: rack.pollingActive || fullVisualizer.presentationActive }
     Equalizer { id: equalizerBackend }
     AudioAnalyzer { id: monitor; active: (rack.pollingActive && rack.visible && !rack.visualizerFolded) || fullVisualizer.presentationActive }
     Preferences { id: settingsStore }
@@ -74,12 +74,18 @@ Item {
         ColumnLayout {
             spacing: 4
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: 93; radius: 3; color: "#070d08"; border.color: "#65687b"
+                id: playerDisplay
+                objectName: "playerDisplay"
+                Layout.fillWidth: true
+                Layout.minimumHeight: implicitHeight
+                implicitHeight: Math.max(93, displayContents.implicitHeight + 16)
+                radius: 3; color: "#070d08"; border.color: "#65687b"
                 Repeater {
-                    model: 31
+                    model: Math.floor((playerDisplay.height - 2) / 3)
                     Rectangle { required property int index; x: 1; y: index * 3; width: parent.width - 2; height: 1; color: "#091208"; opacity: 0.4 }
                 }
                 RowLayout {
+                    id: displayContents
                     anchors.fill: parent; anchors.margins: 8; spacing: 10
                     Rectangle {
                         Layout.preferredWidth: 62; Layout.preferredHeight: 62; color: "#172819"
@@ -87,11 +93,11 @@ Item {
                         Image { id: artwork; anchors.fill: parent; source: session.track.art || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
                     }
                     ColumnLayout {
-                        Layout.fillWidth: true; spacing: 3
+                        Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
                         Text { text: "SPOTIFY"; color: "#7f9b6b"; font.pixelSize: 10; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace" }
-                        Text { Layout.fillWidth: true; text: session.track.title || qsTr("Your music, your way"); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.pixelSize: 16; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; maximumLineCount: 1; elide: Text.ElideRight }
-                        Text { Layout.fillWidth: true; text: session.track.artist || (session.authorized ? qsTr("Start playing in Spotify") : qsTr("Connect Spotify in Settings")); color: "#89b86d"; font.pixelSize: 11; maximumLineCount: 1; elide: Text.ElideRight }
-                        Text { text: rack.time(session.track.position || 0) + " / " + rack.time(session.track.duration || 0); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 25 }
+                        Text { objectName: "playerTrackTitle"; Layout.fillWidth: true; text: session.track.title || qsTr("Your music, your way"); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.pixelSize: 16; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; maximumLineCount: 1; elide: Text.ElideRight }
+                        Text { objectName: "playerTrackArtist"; Layout.fillWidth: true; text: session.track.artist || (session.authorized ? (session.integratedPlayback ? qsTr("Choose a track in Search or Library") : qsTr("Start playing in Spotify")) : qsTr("Connect Spotify in Settings")); color: "#89b86d"; font.pixelSize: 11; maximumLineCount: 1; elide: Text.ElideRight }
+                        Text { objectName: "playerTrackTime"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: rack.time(session.track.position || 0) + " / " + rack.time(session.track.duration || 0); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 25; fontSizeMode: Text.HorizontalFit; minimumPixelSize: 16; maximumLineCount: 1 }
                     }
                 }
             }
@@ -122,7 +128,7 @@ Item {
                 }
                 Text { text: Math.round(volumeSlider.value) + "%"; color: "#c8d6b6"; font.pixelSize: 11 }
             }
-            Text { Layout.fillWidth: true; text: session.error || (session.track.device || session.status); color: session.error ? "#f0b99a" : "#a6b49b"; font.pixelSize: 10; maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight }
+            Text { Layout.fillWidth: true; text: session.error || (session.integratedPlayback && webPlayback.error ? webPlayback.error : session.track.device || (session.authorized && session.integratedPlayback ? webPlayback.status : session.status)); color: session.error || (session.integratedPlayback && webPlayback.error) ? "#f0b99a" : "#a6b49b"; font.pixelSize: 10; maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight }
         }
     }
     Component {
@@ -153,6 +159,7 @@ Item {
     }
     SettingsDialog {
         id: settings; spotify: session; audio: monitor; preferences: settingsStore; equalizer: equalizerBackend; reducedMotion: rack.reducedMotion
+        playbackController: webPlayback; playbackRuntime: playbackEnvironment
         onMotionPreferenceChanged: function(reduced) { rack.reducedMotion = reduced; settingsStore.write("reducedMotion", reduced) }
     }
 }

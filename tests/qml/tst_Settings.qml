@@ -13,6 +13,7 @@ TestCase {
         readonly property string defaultId: "11111111111111111111111111111111"
         property string clientId: defaultId
         property bool hasDefaultClientId: true
+        property bool integratedPlayback: true
         property bool usesDefaultClientId: hasDefaultClientId && clientId === defaultId
         property bool authorized: false
         property bool busy: false

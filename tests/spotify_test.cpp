@@ -47,13 +47,15 @@ protected:
 };
 class SpotifyClientTest : public QObject {
     Q_OBJECT
-    static void session(SpotifyClient &client) {
+    static void session(SpotifyClient &client, bool integrated=false) {
         client.m_accessToken="test-access";
+        client.m_integratedPlayback=integrated;client.m_streamingAuthorized=true;
         client.m_track={{"canControl",true},{"canToggle",true},{"canVolume",true},{"canSeek",true},{"playing",true},{"duration",100000}};
     }
 private slots:
     void unconfiguredApplicationDoesNotStartSignIn() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        QVERIFY(client.integratedPlayback());
         if(client.hasDefaultClientId())QSKIP("This private build supplies a default application.");
         client.connectSpotify();
         QVERIFY(!client.authorized());QVERIFY(!client.busy());
@@ -168,7 +170,7 @@ private slots:
     void refreshesAndRotatesToken() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
         client.m_refreshToken="test+refresh&=/";client.m_clientId=QString(32,'a');
-        transport.responses.enqueue({200,R"({"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600})"});
+        transport.responses.enqueue({200,R"({"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600,"scope":"streaming user-read-private user-read-email"})"});
         transport.responses.enqueue({204,{}});transport.responses.enqueue({200,R"({"devices":[]})"});
         client.refreshToken();QTRY_COMPARE(transport.requests.size(),3);
         QCOMPARE(client.m_refreshToken,QByteArray("new-refresh"));
@@ -177,6 +179,121 @@ private slots:
         QVERIFY(transport.requests[0].body.contains("refresh_token=test%2Brefresh%26%3D%2F"));
         QVERIFY(!transport.requests[0].body.contains("client_secret"));
         QCOMPARE(transport.requests[1].request.rawHeader("Authorization"),QByteArray("Bearer new-access"));
+        QCOMPARE(client.accessTokenForPlayback(),QByteArray("new-access"));
+    }
+    void legacyRefreshRequiresAnExplicitNewStreamingGrant() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_refreshToken="legacy-refresh";client.m_clientId=QString(32,'a');
+        transport.responses.enqueue({200,R"({"access_token":"legacy-access","scope":"user-read-playback-state user-library-read","expires_in":3600})"});
+        client.refreshToken();QTRY_VERIFY(!client.m_refreshing);
+        QVERIFY(!client.authorized());QVERIFY(client.accessTokenForPlayback().isEmpty());
+        QVERIFY(client.m_reauthorizeStreaming);QVERIFY(!client.m_streamingAuthorized);
+        QVERIFY(client.error().contains("Connect Spotify again"));
+        QCOMPARE(transport.requests.size(),1);
+        QVERIFY(!client.m_callback.isListening());
+    }
+    void knownStreamingGrantSurvivesRefreshWithoutRepeatedScope() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_refreshToken="known-refresh";client.m_streamingAuthorized=true;
+        transport.responses.enqueue({200,R"({"access_token":"rotated-access","expires_in":3600})"});
+        transport.responses.enqueue({204,{}});transport.responses.enqueue({200,R"({"devices":[]})"});
+        QSignalSpy changed(&client,&SpotifyClient::accessTokenChanged);
+        client.refreshToken();QTRY_COMPARE(transport.requests.size(),3);
+        QCOMPARE(client.accessTokenForPlayback(),QByteArray("rotated-access"));
+        QVERIFY(!client.m_reauthorizeStreaming);QCOMPARE(changed.count(),1);
+    }
+    void unknownRefreshWithoutScopesDoesNotReachTheSdk() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_refreshToken="unknown-refresh";
+        transport.responses.enqueue({200,R"({"access_token":"unknown-access","expires_in":3600})"});
+        client.refreshToken();QTRY_VERIFY(!client.m_refreshing);
+        QVERIFY(client.accessTokenForPlayback().isEmpty());
+        QVERIFY(client.m_reauthorizeStreaming);QCOMPARE(transport.requests.size(),1);
+    }
+    void authorizationGrantKeepsRequestedScopesAfterPlaybackModeChanges() {
+        for(const bool requestedStreaming:{false,true}) {
+            MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+            // Simulate an authorization begun in one mode, then changed while
+            // the browser is open. An omitted scope echoes that original grant.
+            client.m_oauthStreamingRequested=requestedStreaming;
+            client.m_integratedPlayback=!requestedStreaming;
+            transport.responses.enqueue({200,R"({"access_token":"new-grant","expires_in":3600})"});
+            transport.responses.enqueue({204,{}});transport.responses.enqueue({200,R"({"devices":[]})"});
+            client.requestToken("grant_type=authorization_code");
+            QTRY_VERIFY(!client.m_refreshing);
+            QCOMPARE(client.m_streamingAuthorized,requestedStreaming);
+            QCOMPARE(client.authorized(),requestedStreaming);
+            QCOMPARE(client.m_reauthorizeStreaming,!requestedStreaming);
+            if(requestedStreaming)QCOMPARE(client.accessTokenForPlayback(),QByteArray("new-grant"));
+            else QVERIFY(client.accessTokenForPlayback().isEmpty());
+        }
+    }
+    void integratedPlaybackWaitsForItsOwnDevice() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.m_track["deviceId"]="remote-player";
+        client.playPause();client.playItem("spotify:track:1111111111111111111111");
+        client.addToQueue("spotify:track:1111111111111111111111");
+        QVERIFY(transport.requests.isEmpty());QVERIFY(!client.localPlaybackReady());
+        QVERIFY(!client.track().value("canToggle").toBool());
+        QVERIFY(client.error().contains("integrated player is not ready"));
+    }
+    void selectedTrackStartsLocallyWithoutAnExternalPlayer() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.m_track.clear();client.setLocalPlaybackDevice("sdk-device");
+        QVERIFY(client.localPlaybackReady());
+        QSignalSpy localCommand(&client,&SpotifyClient::localPlaybackCommand);
+        client.playItem("spotify:track:1111111111111111111111");QTRY_VERIFY(!client.busy());
+        QCOMPARE(transport.requests.size(),1);
+        QCOMPARE(transport.requests[0].request.url().path(),QString("/v1/me/player/play"));
+        QCOMPARE(QUrlQuery(transport.requests[0].request.url()).queryItemValue("device_id"),QString("sdk-device"));
+        QCOMPARE(QJsonDocument::fromJson(transport.requests[0].body).object().value("uris").toArray().size(),1);
+        QCOMPARE(localCommand.count(),1);QCOMPARE(localCommand[0][0].toString(),QString("activate"));
+    }
+    void playTransfersRemoteContextRatherThanPausingRemotePlayback() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.m_track["deviceId"]="remote-player";client.setLocalPlaybackDevice("sdk-device");
+        QVERIFY(!client.track().value("playing").toBool());
+        client.playPause();QTRY_VERIFY(!client.busy());
+        QCOMPARE(transport.requests[0].request.url().path(),QString("/v1/me/player"));
+        const auto body=QJsonDocument::fromJson(transport.requests[0].body).object();
+        QCOMPARE(body.value("device_ids").toArray().first().toString(),QString("sdk-device"));
+        QVERIFY(body.value("play").toBool());
+    }
+    void integratedControlsTargetLocalDeviceAndSdkVolume() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.setLocalPlaybackDevice("sdk-device");
+        client.updateLocalPlaybackState({{"active",true},{"playing",true},{"position",10000},{"duration",100000},
+            {"canToggle",true},{"canSeek",true},{"canNext",true},{"canPrevious",true},{"canShuffle",true},{"canRepeat",true},{"repeat","off"}});
+        client.playPause();QTRY_VERIFY(!client.busy());
+        client.seek(20000);QTRY_VERIFY(!client.busy());
+        client.next();QTRY_VERIFY(!client.busy());
+        client.toggleShuffle();QTRY_VERIFY(!client.busy());
+        client.cycleRepeat();QTRY_VERIFY(!client.busy());
+        client.addToQueue("spotify:track:1111111111111111111111");QTRY_VERIFY(!client.busy());
+        QCOMPARE(transport.requests.size(),6);
+        for(const auto &sent:transport.requests)
+            QCOMPARE(QUrlQuery(sent.request.url()).queryItemValue("device_id"),QString("sdk-device"));
+        QCOMPARE(transport.requests[0].request.url().path(),QString("/v1/me/player/pause"));
+        QSignalSpy localCommand(&client,&SpotifyClient::localPlaybackCommand);
+        client.setVolume(150);QCOMPARE(transport.requests.size(),6);
+        QCOMPARE(localCommand.count(),1);QCOMPARE(localCommand[0][0].toString(),QString("volume"));
+        QCOMPARE(localCommand[0][1].toInt(),100);QCOMPARE(client.track().value("volume").toInt(),100);
+        client.clearLocalPlaybackDevice();QVERIFY(!client.localPlaybackReady());
+        client.playItem("spotify:track:1111111111111111111111");QCOMPARE(transport.requests.size(),6);
+    }
+    void remoteTakeoverDoesNotBecomeIntegratedPlayerMetadata() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.setLocalPlaybackDevice("sdk-device");
+        client.updateLocalPlaybackState({{"active",true},{"playing",true},{"title","Local track"},{"canToggle",true}});
+        QCOMPARE(client.track().value("title").toString(),QString("Local track"));
+        transport.responses.enqueue({200,R"({"is_playing":true,"device":{"id":"remote-device","name":"Remote"},"item":{"name":"Remote track","duration_ms":100000}})"});
+        client.refreshState();QTRY_VERIFY(!client.m_polling);
+        QVERIFY(client.track().value("title").toString().isEmpty());
+        QVERIFY(!client.track().value("playing").toBool());
+        client.updateLocalPlaybackState({{"active",true},{"playing",false},{"title","Old local track"}});
+        QVERIFY(client.track().value("title").toString().isEmpty());
+        client.setIntegratedPlayback(false);
+        QCOMPARE(client.track().value("title").toString(),QString("Remote track"));
     }
     void cancelledSessionIgnoresLateResponse() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);

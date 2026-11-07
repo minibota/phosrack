@@ -12,7 +12,7 @@ on:
       - '**/*.md'
   workflow_dispatch:
 env:
-  PHOSRACK_RELEASE_VERSION: 0.3.1
+  PHOSRACK_RELEASE_VERSION: 0.3.2
 permissions:
   contents: read
 jobs:
@@ -32,7 +32,14 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
+          modules: 'qtwebengine qtwebchannel qtpositioning'
           cache: true
+      - name: Report WebEngine codec support
+        shell: pwsh
+        run: |
+          $qtRoot = Split-Path (Split-Path (Get-Command qmake.exe).Source -Parent) -Parent
+          Get-ChildItem (Join-Path $qtRoot 'include/QtWebEngineCore') -Filter '*config*.h' -Recurse |
+            Select-String -Pattern 'webengine_proprietary_codecs|webengine_system_ffmpeg'
       - name: Install NSIS
         shell: pwsh
         run: |
@@ -41,10 +48,23 @@ jobs:
       - name: Configure and build
         shell: pwsh
         run: |
-          cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DPHOSRACK_SPOTIFY_CLIENT_ID=
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build build-win --parallel 2
           exit $LASTEXITCODE
+      - name: Check WebEngine runtime capabilities
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          & .\build-win\phosrack-webengine-runtime-check.exe 2>&1 |
+            Tee-Object -FilePath webengine-runtime-check.txt
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phosrack-${{ env.PHOSRACK_RELEASE_VERSION }}-windows-runtime-check
+          path: webengine-runtime-check.txt
+          if-no-files-found: warn
       - name: Test
         shell: pwsh
         run: ctest --test-dir build-win --output-on-failure

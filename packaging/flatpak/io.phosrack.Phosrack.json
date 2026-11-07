@@ -11,7 +11,10 @@
     "--socket=fallback-x11",
     "--device=dri",
     "--filesystem=xdg-run/pipewire-0",
-    "--talk-name=org.kde.kwalletd6"
+    "--talk-name=org.kde.kwalletd6",
+    "--socket=pulseaudio",
+    "--env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess",
+    "--filesystem=/opt/google/chrome/WidevineCdm:ro"
   ],
   "cleanup": [
     "/include",
@@ -25,14 +28,30 @@
       "buildsystem": "cmake-ninja",
       "config-opts": [
         "-DBUILD_TESTING=OFF",
-        "-DCMAKE_BUILD_TYPE=Release"
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DPHOSRACK_SPOTIFY_CLIENT_ID="
       ],
       "sources": [
         {
           "type": "dir",
-          "path": "../.."
+          "path": "../..",
+          "skip": [
+            ".git",
+            ".flatpak-builder",
+            "flatpak-build",
+            "repo",
+            "releases",
+            "dist",
+            "build",
+            "build-win"
+          ]
         }
       ]
     }
+  ],
+  "base": "io.qt.qtwebengine.BaseApp",
+  "base-version": "6.10",
+  "cleanup-commands": [
+    "/app/cleanup-BaseApp.sh"
   ]
 }

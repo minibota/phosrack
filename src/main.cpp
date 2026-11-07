@@ -4,6 +4,8 @@
 #include <QIcon>
 #include <QImage>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QDebug>
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QTimer>
@@ -13,8 +15,15 @@
 #include "localization.h"
 #include "preferences.h"
 #include "spotifyclient.h"
+#include "webplaybackcontroller.h"
+#include "playbackruntime.h"
 
 int main(int argc, char **argv) {
+    for(int i=1;i<argc;++i) {
+        if(QByteArray(argv[i])=="--smoke-test"||QByteArray(argv[i])=="--screenshot")qputenv("PHOSRACK_TEST_MODE","1");
+    }
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    PlaybackRuntime::configureBeforeApplication();
     QApplication app(argc, argv);
     QCoreApplication::setApplicationName("Phosrack");
     QCoreApplication::setOrganizationName("Phosrack");
@@ -31,6 +40,8 @@ int main(int argc, char **argv) {
     parser.addOption({"language", "Override the system language for testing (en/es/fr).", "language"});
     parser.addOption({"settings", "Open Settings on launch (also useful for UI checks)."});
     parser.addOption({"visualizer", "Open the fullscreen visualizer on launch."});
+    parser.addOption({"connect", "Connect the configured personal Spotify application on launch."});
+    parser.addOption({"playback-diagnostics", "Log playback readiness and transport state without credentials or track identifiers."});
     parser.process(app);
     if (parser.isSet("smoke-test") || parser.isSet("screenshot"))
         qputenv("PHOSRACK_TEST_MODE", "1");
@@ -39,12 +50,37 @@ int main(int argc, char **argv) {
     qmlRegisterType<AudioAnalyzer>("Phosrack", 1, 0, "AudioAnalyzer");
     qmlRegisterType<Equalizer>("Phosrack", 1, 0, "Equalizer");
     qmlRegisterType<Preferences>("Phosrack", 1, 0, "Preferences");
+    WebPlaybackController webPlayback;
+    PlaybackRuntime playbackRuntime;
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("webPlayback",&webPlayback);
+    engine.rootContext()->setContextProperty("playbackEnvironment",&playbackRuntime);
     bool qmlWarnings = false;
     QObject::connect(&engine, &QQmlEngine::warnings, &app,
         [&](const QList<QQmlError> &warnings) { if (!warnings.isEmpty()) qmlWarnings = true; });
     engine.load(QUrl(QStringLiteral("qrc:/ui/App.qml")));
     if (engine.rootObjects().isEmpty()) return 1;
+    auto *session=engine.rootObjects().first()->findChild<SpotifyClient*>("spotifySession");
+    if(!session)return 5;
+    auto syncPlayback=[&] {
+        webPlayback.setEnabled(session->integratedPlayback());
+        webPlayback.setAccessToken(session->accessTokenForPlayback());
+    };
+    QObject::connect(session,&SpotifyClient::accessTokenChanged,&webPlayback,syncPlayback);
+    QObject::connect(session,&SpotifyClient::integratedPlaybackChanged,&webPlayback,syncPlayback);
+    QObject::connect(&webPlayback,&WebPlaybackController::deviceReady,session,&SpotifyClient::setLocalPlaybackDevice);
+    QObject::connect(&webPlayback,&WebPlaybackController::deviceUnavailable,session,&SpotifyClient::clearLocalPlaybackDevice);
+    QObject::connect(&webPlayback,&WebPlaybackController::playbackState,session,&SpotifyClient::updateLocalPlaybackState);
+    QObject::connect(session,&SpotifyClient::localPlaybackCommand,&webPlayback,&WebPlaybackController::command);
+    syncPlayback();
+    if(parser.isSet("playback-diagnostics")) {
+        QObject::connect(&webPlayback,&WebPlaybackController::deviceReady,&app,[]{qInfo("Phosrack SDK device ready");});
+        QObject::connect(&webPlayback,&WebPlaybackController::errorChanged,&app,[&]{if(!webPlayback.error().isEmpty())qInfo().noquote()<<"Phosrack SDK:"<<webPlayback.error();});
+        QObject::connect(&webPlayback,&WebPlaybackController::playbackState,&app,[](const QVariantMap &state){
+            qInfo().noquote()<<"Phosrack SDK state: playing="<<state.value("playing").toBool()<<"position="<<state.value("position").toInt();
+        });
+    }
+    if(parser.isSet("connect")&&!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE"))QTimer::singleShot(300,session,&SpotifyClient::connectSpotify);
     if (parser.isSet("smoke-test")) {
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         if (!window || !window->flags().testFlag(Qt::FramelessWindowHint)) return 4;

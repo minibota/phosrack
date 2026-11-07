@@ -19,7 +19,6 @@ ApplicationWindow {
         MouseArea {
             anchors.fill: parent
             onPressed: window.startSystemMove()
-            onDoubleClicked: window.visibility === Window.Maximized ? window.showNormal() : window.showMaximized()
         }
         Text { x: 5; anchors.verticalCenter: parent.verticalCenter; text: "ϟ"; color: "#bfff79"; font.bold: true; font.pixelSize: 15 }
         Rectangle { x: 22; anchors.right: brand.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; height: 6; color: "transparent"; border.color: "#a58e53"; Rectangle { y: 2; width: parent.width; height: 1; color: "#e5cd88" } }
@@ -29,7 +28,6 @@ ApplicationWindow {
             id: windowActions; anchors.right: parent.right; anchors.rightMargin: 2; anchors.verticalCenter: parent.verticalCenter; spacing: 2
             RackButton { objectName: "settingsButton"; text: "⚙"; chrome: true; description: qsTr("Settings"); implicitWidth: 20; implicitHeight: 18; onClicked: rack.openSettings() }
             RackButton { text: "−"; chrome: true; description: qsTr("Minimize"); implicitWidth: 18; implicitHeight: 18; onClicked: window.showMinimized() }
-            RackButton { text: "□"; chrome: true; description: window.visibility === Window.Maximized ? qsTr("Restore") : qsTr("Maximize"); implicitWidth: 18; implicitHeight: 18; onClicked: window.visibility === Window.Maximized ? window.showNormal() : window.showMaximized() }
             RackButton { text: "×"; chrome: true; description: qsTr("Close"); implicitWidth: 18; implicitHeight: 18; onClicked: window.close() }
         }
     }

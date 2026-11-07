@@ -9,6 +9,8 @@ Dialog {
     property var audio
     property var preferences
     property var equalizer
+    property var playbackController: null
+    property var playbackRuntime: null
     property bool reducedMotion: false
     property bool advancedSpotifyExpanded: false
     property bool clientDraftModified: false
@@ -85,7 +87,7 @@ Dialog {
                 objectName: "advancedSpotifyContent"
                 visible: settings.advancedSpotifyExpanded
                 Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: qsTr("In the Spotify Developer Dashboard, create an app with Web API enabled and register the redirect URI below."); color: "#b3bda9"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: qsTr("In the Spotify Developer Dashboard, enable Web API and Web Playback SDK, then register the redirect URI below."); color: "#b3bda9"; font.pixelSize: 11; wrapMode: Text.Wrap }
                 Text { Layout.fillWidth: true; visible: spotify.clientId.length > 0; text: spotify.usesDefaultClientId ? qsTr("Using the built-in Spotify application.") : qsTr("Using your Spotify application."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
                 TextField {
                     id: clientField; objectName: "spotifyClientIdField"; Layout.fillWidth: true
@@ -116,6 +118,40 @@ Dialog {
                             settings.syncClientDraft()
                         }
                     }
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true; spacing: 6
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#4b4f66" }
+                Text { text: qsTr("PLAYBACK"); color: "#baff74"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 13 }
+                ComboBox {
+                    objectName: "playbackModeSelector"
+                    Layout.fillWidth: true
+                    model: [qsTr("Play in Phosrack"), qsTr("Control another Spotify player")]
+                    currentIndex: spotify.integratedPlayback ? 0 : 1
+                    Accessible.name: qsTr("Playback mode")
+                    onActivated: spotify.integratedPlayback = currentIndex === 0
+                }
+                Text {
+                    Layout.fillWidth: true; visible: spotify.integratedPlayback
+                    text: settings.playbackController ? (settings.playbackController.error || settings.playbackController.status) : ""
+                    color: settings.playbackController && settings.playbackController.error ? "#f0b99a" : "#93ad7b"
+                    font.pixelSize: 11; wrapMode: Text.Wrap
+                }
+                RackButton {
+                    text: qsTr("Retry player"); visible: spotify.integratedPlayback && !!settings.playbackController
+                    enabled: spotify.authorized; onClicked: settings.playbackController.retry()
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true; visible: spotify.integratedPlayback && !!settings.playbackRuntime
+                    Text { Layout.fillWidth: true; text: qsTr("Integrated playback needs Widevine. Phosrack can use an existing compatible installation; the module is not bundled."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+                    Text { Layout.fillWidth: true; text: settings.playbackRuntime ? (settings.playbackRuntime.detectedPath || qsTr("No Widevine module detected")) : ""; color: "#b3bda9"; font.pixelSize: 10; wrapMode: Text.WrapAnywhere }
+                    Flow {
+                        Layout.fillWidth: true; spacing: 6
+                        RackButton { text: qsTr("Choose Widevine module…"); onClicked: settings.playbackRuntime.chooseWidevine() }
+                        RackButton { text: qsTr("Auto-detect"); onClicked: settings.playbackRuntime.useAutomaticDetection() }
+                    }
+                    Text { Layout.fillWidth: true; visible: !!settings.playbackRuntime && (settings.playbackRuntime.restartRequired || settings.playbackRuntime.error.length > 0); text: settings.playbackRuntime ? (settings.playbackRuntime.error || qsTr("Restart Phosrack to apply the DRM module change.")) : ""; color: "#f0b99a"; font.pixelSize: 11; wrapMode: Text.Wrap }
                 }
             }
             ColumnLayout {

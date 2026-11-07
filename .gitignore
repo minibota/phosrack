@@ -20,3 +20,8 @@ compile_commands.json
 !releases/**/*.zip
 
 # User-facing installers are versioned only under releases/.
+
+# Large WebEngine bundles are published as release assets.
+/releases/v0.3.2/*.exe
+/releases/v0.3.2/*.zip
+/releases/v0.3.2/*.flatpak
