@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Phosrack WebEngine playback probe</title>
+<style>body{background:#171b23;color:#bce982;font:16px system-ui;margin:24px}button{padding:10px;margin:4px;background:#30394a;color:#dbf4bd;border:1px solid #778966}pre{white-space:pre-wrap;color:#d3d9c8;font:12px monospace;max-height:360px;overflow:auto}.note{color:#bdc5b5}button:disabled{opacity:.4}</style>
+<h1>Phosrack · WebEngine playback probe</h1>
+<p class="note">Temporary diagnostic session. Premium required. Start a song in Spotify before transferring playback here.</p>
+<button id="connect">Connect Spotify</button><button id="transfer" disabled>Play here</button><button id="pause" disabled>Pause</button><button id="resume" disabled>Resume</button><button id="restore">Restore previous player</button>
+<p id="status">Checking Qt WebEngine, Widevine and the Spotify SDK…</p><pre id="log"></pre>
+<script src="qwebchannel.js"></script>
+<script>
+let bridge, player, device, sdkReady=false, signedIn=false, exercise=false, exercising=false;
+const $=id=>document.getElementById(id);
+function report(name,data={}) { const row=JSON.stringify({event:name,...data});$('log').textContent+=row+'\n';$('log').scrollTop=$('log').scrollHeight;if(bridge)bridge.record(name,JSON.stringify(data)); }
+function status(text){$('status').textContent=text;}
+function stateData(s){return {paused:s.paused,position:s.position,duration:s.duration,hasTrack:!!s.track_window?.current_track};}
+window.onSpotifyWebPlaybackSDKReady=()=>{sdkReady=true;report('sdk_loaded',{available:true});connectPlayer();};
+function connectPlayer(){
+ if(!sdkReady||!signedIn||player)return;
+ player=new Spotify.Player({name:'Phosrack WebEngine Probe',volume:0.25,getOAuthToken:cb=>bridge.getToken(cb)});
+ for(const name of ['initialization_error','authentication_error','account_error','playback_error','autoplay_failed'])player.addListener(name,()=>{report(name);status(name.replaceAll('_',' '));});
+ player.addListener('ready',({device_id})=>{device=device_id;report('sdk_ready',{available:true});status('SDK player ready. Play here to test audio.');$('transfer').disabled=false; if(exercise)startPlayback();});
+ player.addListener('not_ready',()=>report('sdk_not_ready',{available:false}));
+ player.addListener('player_state_changed',s=>{if(s)report('state',stateData(s));});
+ player.connect().then(ok=>report('sdk_connect',{ok})).catch(()=>report('js_error'));
+}
+async function startPlayback(){
+ try {await player.activateElement();bridge.startPlayback(device);}catch(e){report('autoplay_failed');}
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function runExercise(){
+ if(exercising)return;exercising=true;
+ status('Testing playback progress, pause, resume and seek. Previous player will be restored.');
+ try {
+  await sleep(4000);
+  for(let n=0;n<4;n++){const s=await player.getCurrentState();if(s)report('state',stateData(s));await sleep(1500);}
+  await player.pause();await sleep(1500);let s=await player.getCurrentState();report('exercise_pause',{ok:!!s?.paused});
+  await player.resume();await sleep(2500);s=await player.getCurrentState();report('exercise_resume',{ok:!!s&&!s.paused});
+  if(s&&s.duration>20000){const target=Math.min(s.position+5000,s.duration-10000);await player.seek(target);await sleep(1200);const after=await player.getCurrentState();report('exercise_seek',{ok:!!after&&Math.abs(after.position-target)<4000});}
+ }catch(e){report('js_error');}
+ finally {report('exercise_finished');bridge.restore();}
+}
+new QWebChannel(qt.webChannelTransport,async channel=>{
+ bridge=channel.objects.probe;
+ bridge.authorized.connect(()=>{signedIn=true;status('Authorized. Connecting the SDK player…');connectPlayer();});
+ bridge.playbackStarted.connect(()=>{status('Playback transferred to Qt WebEngine.');$('pause').disabled=false;$('resume').disabled=false;if(exercise)runExercise();});
+ bridge.restoreDone.connect(()=>status('Restore attempt finished. See diagnostic results.'));
+ bridge.exerciseEnabled(value=>exercise=value);
+ $('connect').onclick=()=>bridge.login();$('transfer').onclick=startPlayback;
+ $('pause').onclick=()=>player?.pause();$('resume').onclick=()=>player?.resume();$('restore').onclick=()=>bridge.restore();
+ report('environment',{secureContext:isSecureContext,eme:!!navigator.requestMediaKeySystemAccess});
+ const audio=document.createElement('audio');report('codecs',{aac:audio.canPlayType('audio/mp4; codecs="mp4a.40.2"'),vorbis:audio.canPlayType('audio/ogg; codecs="vorbis"'),opus:audio.canPlayType('audio/webm; codecs="opus"')});
+ for(const [name,mime] of [['widevine_aac','audio/mp4; codecs="mp4a.40.2"'],['widevine_opus','audio/webm; codecs="opus"']]){
+  try {const access=await navigator.requestMediaKeySystemAccess('com.widevine.alpha',[{initDataTypes:['cenc'],audioCapabilities:[{contentType:mime,robustness:'SW_SECURE_CRYPTO'}]}]);const keys=await access.createMediaKeys();report(name,{supported:true,keysCreated:!!keys});}
+  catch(e){report(name,{supported:false});}
+ }
+ const sdk=document.createElement('script');sdk.src='https://sdk.scdn.co/spotify-player.js';sdk.onerror=()=>report('sdk_loaded',{available:false});document.head.appendChild(sdk);
+ bridge.pageReady();
+});
+</script></html>
