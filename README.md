@@ -1,18 +1,19 @@
 # Phosrack
 
-[![Version 0.3.1](https://img.shields.io/badge/version-0.3.1-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.1)
+[![Version 0.3.2](https://img.shields.io/badge/version-0.3.2-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.2)
 [![Linux build](https://github.com/minibota/phosrack/actions/workflows/build.yml/badge.svg?branch=main&label=Linux)](https://github.com/minibota/phosrack/actions/workflows/build.yml)
 [![Windows build](https://github.com/minibota/phosrack/actions/workflows/windows.yml/badge.svg?branch=main&label=Windows)](https://github.com/minibota/phosrack/actions/workflows/windows.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
-**0.3.1 · QML + C++ desktop music rack** · GPL-3.0-or-later
+**0.3.2 · QML + C++ desktop music rack** · GPL-3.0-or-later
 
-A compact media-player rack inspired by the classic Winamp era, with modular panels,
-a real local equalizer and an original fullscreen audio visualizer.
+A compact music player inspired by the classic Winamp era. Arrange its panels your
+way, shape the sound with the equalizer, and enjoy glowing visuals that react to
+your music. Listen inside Phosrack or use it to control another Spotify player.
 
-[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.1) ·
+[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.2) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
-[Validation](docs/validation-0.3.1.md) · [Issues](https://github.com/minibota/phosrack/issues)
+[Validation](docs/validation-0.3.2.md) · [Issues](https://github.com/minibota/phosrack/issues)
 
 ## Screenshot
 
@@ -22,132 +23,163 @@ Phosrack in English with Spotify playback, the equalizer, live spectrum visualiz
 
 ## Features
 
-- Stackable, reorderable and collapsible player, visualizer, EQ and music panels.
-- Artwork, playback position, volume, previous/next, shuffle and repeat.
-- Search, queue and library views, including saved tracks, albums and playlists.
-- Ten EQ bands, preamp, Flat/Rock/Pop/Jazz/Classical/Bass boost/Vocal presets and
-  persistent custom gains.
-- Orbit, Spectrum and Oscilloscope visualization, reduced motion, fullscreen mode,
-  and an overlay for the current and next track.
-- English, Spanish and French selected from the system language; English fallback.
-- Connect your own Spotify developer application using a public Client ID and browser
-  authorization with PKCE; no Client Secret is needed.
-- Protected session storage: KWallet on Linux and Windows Credential Manager on Windows.
+- Stack, reorder or fold the player, equalizer, visualizer and music panels.
+- Listen to Spotify inside Phosrack, or control Spotify on another player or device.
+- Album artwork, playback progress, volume, previous/next, shuffle and repeat.
+- Search for music, see what's coming next, and browse your saved tracks, albums
+  and playlists.
+- A ten-band equalizer with Flat, Rock, Pop, Jazz, Classical, Bass boost and Vocal
+  presets. Adjust the sound yourself and keep your custom settings.
+- Three visual styles: Orbit, Spectrum and Oscilloscope. Go fullscreen to see the
+  current and next song, or choose reduced motion for calmer effects.
+- English, Spanish and French, following your computer's language. Other languages
+  use English.
+- Sign in through your browser after a one-time Spotify setup. Your saved sign-in
+  uses your system's protected storage: KWallet on Linux or Credential Manager on Windows.
 
-The application embeds its QML, icon and translation catalogs. It does not require
-Plasma or a globally installed QML plugin. Spotify playback uses an existing player;
-no private Spotify APIs, borrowed application credentials or librespot are used.
+Phosrack is a standalone desktop app. You do not need KDE Plasma to use it.
 
 ## Limitations
 
 > [!IMPORTANT]
-> **Spotify Premium is required for playback controls.** Phosrack controls Spotify
-> playback; it does not stream music itself. For playback on this computer, keep the
-> official Spotify desktop app running in the background or the
-> [Spotify Web Player](https://open.spotify.com/) open in your browser.
-> Start playback there first, then use Phosrack. You can also control another active
-> Spotify Connect device, but its audio stays on that device.
+> Phosrack can play Spotify audio inside the app or control another Spotify player.
+> Choose the playback mode in Settings.
+>
+> **Both modes need Spotify Premium, an internet connection and your own Client ID.**
+> A Client ID is a code you get from Spotify during the one-time setup below.
+> It identifies your personal application; it is not your password.
+>
+> **Play in Phosrack** (the default) also needs **Widevine**, a component used to
+> play protected music, plus compatible audio support on your computer. Widevine
+> is not included with Phosrack. If Chrome is already installed, Phosrack looks
+> for a copy it can use.
+> **Control another Spotify player** needs an active Spotify app, web player or
+> Spotify Connect device. The music plays on whichever player you choose.
 
-Before installing, please be aware of these current limitations:
+A few things to know before installing:
 
-- **Spotify Free playback controls are not supported.** Supplying a Client ID
-  does not unlock Premium features or bypass Spotify's
-  [playback requirements](https://developer.spotify.com/documentation/web-api/reference/start-a-users-playback).
-- **Personal Spotify application setup is required.** Current source builds use
-  each user's own Client ID. Spotify's development-mode limits still apply to that
-  application, including up to five authorized users. Public downloads and browser
-  sign-in alone do not grant API access. See [Spotify setup and scope](#spotify-setup-and-scope),
-  including the instructions for existing v0.3.1 packages.
-- **No offline playback or music downloads.** Spotify playback and API features
-  require an internet connection; Phosrack cannot download songs or play them offline.
-- **The visualizer and EQ work with local audio only.** They cannot visualize or
-  process sound playing on a remote phone, speaker or other Spotify Connect device.
-  The visualizer includes all audio on the monitored output, including other apps
-  and notifications.
-- **The equalizer needs additional setup.** Linux requires PipeWire and routing the
-  player to the **Phosrack EQ** output. Windows requires a separate Equalizer APO
-  installation configured for the playback device. See [Local audio](#local-audio).
-- **Queue and library editing is limited.** You can view the queue and add tracks,
-  but cannot remove or reorder queued items. Library views support browsing, not
-  saving/removing library items or editing playlists.
+- **Spotify Free is not supported for playback.** Spotify requires Premium for
+  [playing inside the app](https://developer.spotify.com/documentation/web-playback-sdk/tutorials/getting-started)
+  and [controlling playback](https://developer.spotify.com/documentation/web-api/reference/start-a-users-playback).
+  A Client ID does not change your subscription.
+- **A one-time Spotify setup is required.** You will create your own Client ID.
+  Spotify's limits still apply: a new developer application can have up to five
+  approved users, and its owner must keep Premium. Spotify also limits how often
+  applications can contact its service. Signing in alone does not approve an account
+  for your application. See [Spotify setup](#spotify-setup-and-scope) and
+  [Spotify's access rules](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+- **Playback inside the app can need extra setup.** Finding Widevine does not
+  guarantee it will work with your system's audio support. You can select an
+  existing copy in Settings and restart Phosrack. Linux sound and pause/resume
+  have been tested; Windows listening tests and a complete Flatpak sign-in/listening
+  test are still pending. See [what has been tested](docs/validation-0.3.2.md) and
+  [Qt's technical requirements](https://doc.qt.io/qt-6.8/qtwebengine-features.html#html5-drm).
+- **No offline listening or downloads.** Phosrack needs an internet connection
+  to play Spotify music and browse your account.
+- **The visualizer and equalizer use sound from this computer.** They cannot react
+  to or change music playing on another Spotify Connect device, such as a phone
+  or smart speaker. The visualizer hears
+  everything on the selected sound output, including other apps and notifications.
+- **The equalizer needs a little setup.** On Linux, choose **Phosrack EQ** as the
+  sound output for the app playing your music. On Windows, install Equalizer APO
+  separately and enable it for your speakers or headphones. See [Local audio](#local-audio).
+- **Some music management features are not available yet.** You can see the queue
+  and add songs, but cannot remove or rearrange them. You can browse your library,
+  but cannot save/remove library items or edit playlists. Spotify only lets these
+  personal developer applications [read playlist contents](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide#playlist-endpoint-renames)
+  for playlists you own or help edit.
 
 ## Install
 
-Download the package for your platform from the
-[v0.3.1 release](https://github.com/minibota/phosrack/releases/tag/v0.3.1).
-Linux formats are RPM (Fedora 45 x86_64), DEB (Debian 13 amd64) and Flatpak.
-The Windows workflow produces an x64 installer and portable ZIP using MSVC.
+Download the file for your computer from the
+[v0.3.2 release](https://github.com/minibota/phosrack/releases/tag/v0.3.2):
 
-To update an existing user Flatpak installation with the downloaded bundle:
+- **Windows 11:** choose the `.exe` installer. The `.zip` is a portable version:
+  extract it into a folder and open `phosrack.exe`.
+- **Linux:** choose Flatpak, or the package for your distribution: RPM for Fedora 45
+  or DEB for Debian 13. These downloads are for 64-bit Intel/AMD computers.
 
-    flatpak install --user --reinstall ./phosrack-0.3.1-x86_64.flatpak
+Already using the Flatpak? Run this command in the folder containing your download:
 
-Follow [GETTING_STARTED.md](GETTING_STARTED.md) for installation, including the
-per-command digest verification needed for unsigned development RPMs. Check
-[validation notes](docs/validation-0.3.1.md) for completed build/runtime checks; a successful
-Windows compilation does not by itself verify WASAPI or Equalizer APO on real hardware.
+    flatpak install --user --reinstall ./phosrack-0.3.2-x86_64.flatpak
+
+The [getting started guide](GETTING_STARTED.md) has the installation commands,
+including the extra step Fedora needs for these unsigned packages. The
+[testing notes](docs/validation-0.3.2.md) explain which features have been checked
+on each platform.
 
 ## Spotify setup and scope
 
-**Use your own Spotify developer application for personal use.** Current source
-builds do not include a shared Client ID. You configure your public application ID
-once; Phosrack remembers it and uses PKCE to sign in to your own Spotify account.
-A Client ID identifies an application, not your password. Never paste a Client Secret
-or an access token into that field.
+**This is a one-time setup for your own Spotify account.** You will create an entry
+in Spotify's developer dashboard and copy its **Client ID** into Phosrack. You do
+not need to write code, and Phosrack remembers the ID for next time.
 
-1. Sign in to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   with your Premium account and create or select an application for your personal
-   Phosrack setup.
-2. Enable **Web API** and register this redirect URI exactly:
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   and sign in with your Premium account. Choose **Create app**, or open an
+   application you already use for your personal Phosrack setup.
+2. In that application's settings, select **Web API** and **Web Playback SDK**.
+   In **Redirect URIs**, add this exact address, then save:
    `http://127.0.0.1:43821/callback`.
-3. Copy the application's **Client ID**. Open Phosrack Settings, expand
-   **Spotify application setup** if needed, and paste it into **Client ID (no Client Secret)**.
-4. Click **Connect Spotify** and authorize the same Spotify account in your browser.
-5. Open the official Spotify app or web player and start playback. Keep that player
-   running while controlling it from Phosrack.
+   This address lets the browser return your sign-in to Phosrack on your computer.
+3. Copy the application's **Client ID**. In Phosrack, open **Settings > Spotify
+   application setup** and paste it into **Client ID (no Client Secret)**.
+   Use the Client ID only; never paste a Client Secret, password or access token.
+4. Click **Connect Spotify**. Your browser will open Spotify's sign-in and permission
+   screen. Approve access with the same account, then return to Phosrack.
+5. In **Settings > Playback**, choose how you want to listen:
+   **Play in Phosrack** or **Control another Spotify player**.
+
+For **Play in Phosrack**, check the player status in Settings. Phosrack tries to find
+Widevine in an existing Chrome installation. If it cannot find a compatible copy,
+**Choose Widevine module…** lets you select one from an existing trusted installation;
+restart Phosrack after changing it. The [setup guide](GETTING_STARTED.md#playback-and-widevine)
+explains which file to choose. Once the player is ready, play a song from **Search**
+or **Library**. If you are already listening elsewhere, the Play button can bring
+that session into Phosrack.
+
+For **Control another Spotify player**, start the Spotify app,
+[Spotify Web Player](https://open.spotify.com/) or another Spotify Connect device,
+then select it in Settings. Keep that player running; it produces the sound.
+This mode is also useful if playback inside Phosrack is unavailable on your computer.
 
 > [!NOTE]
-> **Existing v0.3.1 installers still contain the earlier shared development ID.**
-> Those packages have not been replaced by this source change. In v0.3.1, expand
-> **Settings > Advanced Spotify settings**, replace the displayed Client ID with
-> your own, then connect again. The redirect URI above is unchanged.
+> **Upgrading from v0.3.1:** if you used the shared application, enter your own
+> Client ID. A personal ID you saved earlier is kept. Enable **Web Playback SDK**
+> in its Spotify settings and reconnect when asked to approve the new permissions.
+> The redirect address above has not changed.
 
-Spotify requires the owner of a development-mode application to retain Premium;
-playback controls also require Premium for the listening account. Each new development
-application allows up to five authenticated users. If you authorize another account,
-add it in your application's **Users Management** allowlist first. Successful browser
-login alone does not grant API access to an unlisted user.
+To let another account use your application, add it under **Users Management** in
+the Spotify dashboard first. Both the application owner and the person listening
+need Premium for this setup. New applications can have up to five approved users;
+a successful browser sign-in does not replace that approval. Your own Client ID
+gives you a separate personal setup, rather than removing Spotify's limits. Wider
+public access requires Spotify's approval under its
+[partner access rules](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
 
-Personal application setup avoids depending on Phosrack's shared tester list; it
-does **not** remove Spotify's per-application limits or grant public access to your
-application. Extended access requires Spotify approval under its partner eligibility
-rules. See [Spotify's quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
-For optional build-time configuration of your own application ID, see the
-[packaging guide](docs/packaging.md#spotify-application-configuration).
+Spotify asks for permission to control playback, read your library and playlists,
+and read the account details needed by its player. If you connected an older version
+of Phosrack, you may be asked to connect again to approve the added permissions.
+Search results arrive in pages of up to ten items of each type. Some playlists and
+playback options may be unavailable because of Spotify's account or device restrictions.
 
-The requested permissions cover playback, saved library and playlists. Older 0.1
-sessions need reauthorization for library permissions. Development-mode search is
-limited to ten results per content type per page; playlist contents can be read only
-for owned/collaborative playlists. The application handles restrictions, empty playback,
-token refresh and request throttling.
-
-This project is independent of Spotify and is not presented as Spotify-approved.
-Use of the official API does not establish compliance of every combined feature.
-The developer policy's visual-media and core-experience provisions still need to be
-resolved before representing the application as an approved public Spotify client.
-Publishing source does not grant additional API access or permission.
+Phosrack is an independent project and is **not approved by Spotify**. Using Spotify's
+official tools or publishing the source does not automatically approve every feature
+or grant wider account access. In particular, the visualizer and the combined player
+experience still need review against [Spotify's developer policy](https://developer.spotify.com/policy)
+before the project can claim such approval.
 
 ## Build from source
 
-Qt 6.5 or later and a C++17 compiler are required.
+Qt 6.5 or later, including WebEngine Core, WebChannel and Widgets, and a C++17
+compiler are required. Widevine is a separate runtime dependency for integrated playback.
 
 Fedora 45 build dependencies:
 
-    sudo dnf install gcc-c++ cmake ninja-build pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative-devel kf6-kwallet-devel extra-cmake-modules pipewire-devel pipewire-utils
+    sudo dnf install gcc-c++ cmake ninja-build pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwebengine-devel qt6-qtwebchannel-devel kf6-kwallet-devel extra-cmake-modules pipewire-devel pipewire-utils
 
 Debian 13 build dependencies:
 
-    sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev libkf6wallet-dev extra-cmake-modules libpipewire-0.3-dev qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qttest pipewire-bin
+    sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev qt6-webengine-dev qt6-webchannel-dev libkf6wallet-dev extra-cmake-modules libpipewire-0.3-dev qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qttest pipewire-bin
 
 Then build and run:
 
@@ -172,6 +204,8 @@ physical output. Its local ten-band biquad DSP accepts live gains over private s
 without restarting the stream or requiring a PipeWire manager permission.
 
 Enable EQ, then choose **Phosrack EQ** as the player output in the system sound settings.
+For integrated playback, route Phosrack's audio stream to that output; in external
+mode, route the Spotify app or browser that is producing the sound.
 Phosrack does not silently change the default output or move other applications.
 Disabling EQ or closing the application removes the temporary sink. A lower preamp
 provides headroom when bands are boosted.
@@ -185,6 +219,7 @@ filter include. The driver itself is not bundled.
 Visual analysis includes all local audio on the selected output, potentially including
 other apps and notifications. It does not receive sound from remote Spotify devices.
 Hiding/folding the visualizer or minimizing its last visible window stops monitoring.
+Integrated music playback continues while the rack is minimized.
 Raw samples are processed in memory, without audio files or uploads.
 
 Fullscreen metadata comes from actual Spotify playback and queue data; unavailable
@@ -197,15 +232,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
 Artwork and effects are original; no Winamp or Windows Media Player assets are bundled.
 Phosrack is independent of Spotify, Winamp, KDE and Microsoft.
 
-The repository is https://github.com/minibota/phosrack. Installable artifacts are kept
-under releases/v0.3.1/. Fully detachable rack panels remain future work.
+The repository is https://github.com/minibota/phosrack. Installers are attached to
+GitHub Releases; versioned release folders contain the download index and checksums.
+Large packages are kept out of Git history. Fully detachable rack panels remain future work.
 
 ## Primary references
 
 - https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow
+- https://developer.spotify.com/documentation/web-playback-sdk
 - https://developer.spotify.com/documentation/web-api/concepts/quota-modes
 - https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide
 - https://developer.spotify.com/policy
 - https://docs.pipewire.org/
 - https://doc.qt.io/qt-6.8/windows-deployment.html
+- https://doc.qt.io/qt-6.8/qtwebengine-features.html#html5-drm
 - https://docs.flatpak.org/en/latest/sandbox-permissions.html
