@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Phosrack VERSION 0.3.2 LANGUAGES CXX)
+project(Phosrack VERSION 0.3.3 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -39,7 +39,8 @@ add_library(phosrack-core STATIC
     src/spotifyclient.cpp src/spotifyclient.h ${PHOSRACK_AUDIO_SOURCE} src/audioanalyzer.h
     src/preferences.cpp src/preferences.h src/localization.cpp src/localization.h
     ${PHOSRACK_EQ_SOURCE} src/equalizer.h src/tokenstore.cpp src/tokenstore.h
-    src/apoconfig.cpp src/apoconfig.h)
+    src/apoconfig.cpp src/apoconfig.h
+    src/oauthcallbackpage.cpp src/oauthcallbackpage.h)
 target_link_libraries(phosrack-core PUBLIC Qt6::Core Qt6::Gui Qt6::Network)
 if(WIN32)
     target_link_libraries(phosrack-core PUBLIC advapi32 ole32 uuid)
@@ -71,7 +72,7 @@ else()
 endif()
 file(GLOB PHOSRACK_QML CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/package/contents/ui/*.qml")
 qt_add_resources(phosrack "phosrack-ui"
-    PREFIX "/ui" BASE "${CMAKE_SOURCE_DIR}/package/contents/ui" FILES ${PHOSRACK_QML})
+    PREFIX "/ui" BASE "${CMAKE_SOURCE_DIR}/package/contents/ui" FILES ${PHOSRACK_QML} package/contents/ui/assets/spotify-logo-white.svg)
 file(GLOB PHOSRACK_TRANSLATIONS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/translations/*.json")
 if(PHOSRACK_TRANSLATIONS)
     qt_add_resources(phosrack "phosrack-i18n"
@@ -89,7 +90,7 @@ if(NOT WIN32)
     install(FILES app/io.phosrack.Phosrack.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
 endif()
 install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/phosrack)
-install(FILES README.md GETTING_STARTED.md DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/phosrack)
+install(FILES README.md GETTING_STARTED.md PRIVACY.md TERMS.md THIRD_PARTY.md DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/phosrack)
 set(PHOSRACK_WINDOWS_DEPLOY_DIR "" CACHE PATH "Staged Qt Windows deployment copied into installer packages")
 if(WIN32 AND PHOSRACK_WINDOWS_DEPLOY_DIR)
     install(DIRECTORY "${PHOSRACK_WINDOWS_DEPLOY_DIR}/" DESTINATION .)
@@ -111,6 +112,11 @@ if(BUILD_TESTING)
     target_link_libraries(phosrack-spotify-tests PRIVATE phosrack-core Qt6::Test)
     add_test(NAME spotify-protocol COMMAND phosrack-spotify-tests)
     set_tests_properties(spotify-protocol PROPERTIES ENVIRONMENT "PHOSRACK_TEST_MODE=1")
+    add_executable(phosrack-oauthcallback-tests tests/oauthcallback_test.cpp)
+    target_link_libraries(phosrack-oauthcallback-tests PRIVATE phosrack-core Qt6::Test)
+    qt_add_resources(phosrack-oauthcallback-tests "phosrack-oauth-i18n"
+        PREFIX "/i18n" BASE "${CMAKE_SOURCE_DIR}/translations" FILES ${PHOSRACK_TRANSLATIONS})
+    add_test(NAME oauth-callback-page COMMAND phosrack-oauthcallback-tests)
     if(EXISTS "${CMAKE_SOURCE_DIR}/tests/localization_test.cpp")
         add_executable(phosrack-localization-tests tests/localization_test.cpp)
         target_link_libraries(phosrack-localization-tests PRIVATE phosrack-core Qt6::Test)

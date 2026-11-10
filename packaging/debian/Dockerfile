@@ -1,7 +1,7 @@
 FROM debian:trixie
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates build-essential cmake ninja-build qt6-base-dev \
-    qt6-declarative-dev qt6-webengine-dev qt6-webchannel-dev libkf6wallet-dev extra-cmake-modules dpkg-dev file \
+    qt6-declarative-dev libqt6svg6 qt6-webengine-dev qt6-webchannel-dev libkf6wallet-dev extra-cmake-modules dpkg-dev file \
     pkg-config libpipewire-0.3-dev \
     qml6-module-qtquick-controls qml6-module-qtquick-layouts \
     qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qttest \

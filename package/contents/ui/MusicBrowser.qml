@@ -10,6 +10,7 @@ Item {
     property bool sessionWasAuthorized: false
     property bool ready: false
     property bool navigating: false
+    readonly property bool queueVisible: ready && visible && page === "queue"
     property string collectionUri: ""
     property string collectionTitle: ""
     property string returnPage: "library"
@@ -41,10 +42,10 @@ Item {
         sessionWasAuthorized = spotify.authorized; ready = true; refreshPage()
     }
     onVisibleChanged: if (ready && visible) refreshPage()
-    function refreshPage() {
+    function refreshPage(force) {
         if (!ready || !visible || !spotify.authorized) return
         debounce.stop()
-        if (page === "queue") spotify.refreshQueue()
+        if (page === "queue") spotify.refreshQueue(force === true)
         else if (page === "library") {
             if (collectionUri) spotify.openCollection(collectionUri)
             else spotify.loadLibrary(libraryKind)
@@ -59,11 +60,11 @@ Item {
         }
     }
     Timer { id: debounce; interval: 400; onTriggered: if (browser.visible && browser.page === "search" && query.text.trim().length > 1) browser.spotify.search(query.text) }
-    Timer { interval: 15000; repeat: true; running: browser.ready && browser.visible && browser.page === "queue" && browser.spotify.authorized; onTriggered: browser.spotify.refreshQueue() }
     ColumnLayout {
         anchors.fill: parent; spacing: 5
         RowLayout {
             Layout.fillWidth: true; spacing: 4
+            SpotifyAttribution {}
             Repeater {
                 model: [{key:"search", label:qsTr("Search")}, {key:"queue", label:qsTr("Queue")}, {key:"library", label:qsTr("Library")}]
                 delegate: RackButton {
@@ -73,7 +74,7 @@ Item {
                     onClicked: browser.page = modelData.key
                 }
             }
-            RackButton { text: "↻"; description: qsTr("Refresh"); enabled: spotify.authorized && !spotify.collectionBusy; implicitWidth: 28; implicitHeight: 28; onClicked: browser.refreshPage() }
+            RackButton { text: "↻"; description: qsTr("Refresh"); enabled: spotify.authorized && !spotify.collectionBusy; implicitWidth: 28; implicitHeight: 28; onClicked: browser.refreshPage(true) }
         }
         TextField {
             id: query; objectName: "searchField"; Layout.fillWidth: true; implicitHeight: 30
@@ -124,12 +125,18 @@ Item {
                         Rectangle {
                             Layout.preferredWidth: 36; Layout.preferredHeight: 36; color: "#172619"
                             Text { anchors.centerIn: parent; text: "♫"; color: "#baff74" }
-                            Image { anchors.fill: parent; source: modelData.art || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                            Image { anchors.fill: parent; source: modelData.art || ""; cache: false; fillMode: Image.PreserveAspectFit; asynchronous: true }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 2
                             Text { Layout.fillWidth: true; text: modelData.title || ""; color: "#8cff46"; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { Layout.fillWidth: true; text: modelData.subtitle || ""; color: "#93ad7b"; font.pixelSize: 10; elide: Text.ElideRight }
+                        }
+                        RackButton {
+                            text: "↗"; description: qsTr("Open in Spotify")
+                            implicitWidth: 25; implicitHeight: 27
+                            enabled: /^spotify:(track|episode|album|playlist|artist|show):[A-Za-z0-9]+$/.test(modelData.uri || "")
+                            onClicked: Qt.openUrlExternally("https://open.spotify.com/" + modelData.uri.split(":").slice(1).join("/"))
                         }
                         RackButton {
                             text: modelData.contextUri ? "≡" : "▶"; description: modelData.contextUri ? qsTr("Browse collection") : qsTr("Play")

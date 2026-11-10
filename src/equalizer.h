@@ -15,6 +15,7 @@ QString equalizerControls(const QVariantList &gains, double preamp);
 
 class Equalizer : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool permitted READ permitted WRITE setPermitted NOTIFY changed)
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY changed)
     Q_PROPERTY(bool running READ running NOTIFY changed)
     Q_PROPERTY(QVariantList gains READ gains NOTIFY gainsChanged)
@@ -27,6 +28,13 @@ class Equalizer : public QObject {
 public:
     explicit Equalizer(QObject *parent=nullptr);
     ~Equalizer() override;
+    bool permitted() const { return m_permitted; }
+    void setPermitted(bool permitted) {
+        if(m_permitted == permitted) return;
+        m_permitted = permitted;
+        if(!permitted) setEnabled(false);
+        emit changed();
+    }
     bool enabled() const { return m_enabled; }
     bool running() const {
 #ifdef Q_OS_WIN
@@ -53,6 +61,7 @@ public:
     Q_INVOKABLE void setBand(int index, double gain);
     Q_INVOKABLE void selectPreset(const QString &id);
     Q_INVOKABLE void reset();
+    Q_INVOKABLE bool ensureBypassed();
 signals:
     void changed();
     void gainsChanged();
@@ -73,5 +82,6 @@ private:
     double m_preamp=0;
     QString m_preset="flat",m_status,m_error,m_target,m_nodeId;
     QString m_apoDirectory;
+    bool m_permitted=true;
     bool m_enabled=false,m_starting=false,m_stopping=false,m_controlsDirty=false;
 };

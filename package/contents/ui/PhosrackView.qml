@@ -12,9 +12,14 @@ Item {
     property bool visualizerFolded: settingsStore.read("desktop/folded/visualizer", false)
     property bool browserFolded: settingsStore.read("desktop/folded/browser", false)
     property var browserNavigation: ({})
+    property var musicBrowser: null
+    property bool consentRestoreOnly: false
+    property bool termsAcceptedThisSession: false
+    property bool localAudioTools: false
+    readonly property bool localAudioAllowed: localAudioTools && !session.authorized && !session.busy
     SpotifyClient { id: session; objectName: "spotifySession"; active: rack.pollingActive || fullVisualizer.presentationActive }
-    Equalizer { id: equalizerBackend }
-    AudioAnalyzer { id: monitor; active: (rack.pollingActive && rack.visible && !rack.visualizerFolded) || fullVisualizer.presentationActive }
+    Equalizer { id: equalizerBackend; objectName: "equalizerBackend"; permitted: rack.localAudioAllowed }
+    AudioAnalyzer { id: monitor; objectName: "audioMonitor"; active: rack.localAudioAllowed && ((rack.pollingActive && rack.visible && !rack.visualizerFolded) || fullVisualizer.presentationActive) }
     Preferences { id: settingsStore }
     Component.onCompleted: {
         monitor.source = settingsStore.read("desktop/audioSource", "")
@@ -31,6 +36,37 @@ Item {
     function openSettings() { settings.open() }
     function openVisualizer() { fullVisualizer.open(rack.Window.window.screen) }
     function closeVisualizer() { fullVisualizer.close() }
+    function requestSpotifyConnection(restoreOnly) {
+        if (!equalizerBackend.ensureBypassed()) { settings.open(); return }
+        localAudioTools = false
+        if (termsAcceptedThisSession || settingsStore.read("legal/acceptedVersion", "") === "2026-11-10") {
+            if (restoreOnly) session.restoreSession()
+            else session.connectSpotify()
+        } else {
+            consentRestoreOnly = restoreOnly
+            spotifyConsent.open()
+        }
+    }
+    function requestLocalAudioTools() { localAudioConsent.open() }
+    function activateLocalAudioTools() {
+        session.suspendSession()
+        localAudioTools = true
+    }
+    function restoreSpotifySession() { requestSpotifyConnection(true) }
+    function connectSpotify() { requestSpotifyConnection(false) }
+    // Refresh on navigation and track changes, never poll an unchanged queue.
+    property string lastQueueTrack: ""
+    Connections {
+        target: session
+        function onTrackChanged() {
+            const identity = session.track.url || session.track.title || ""
+            if (identity === rack.lastQueueTrack) return
+            rack.lastQueueTrack = identity
+            if (rack.pollingActive && rack.musicBrowser && rack.musicBrowser.queueVisible)
+                queueTrackDelay.restart()
+        }
+    }
+    Timer { id: queueTrackDelay; interval: 500; onTriggered: if (session.authorized && !session.rateLimited) session.refreshQueue() }
     function movePanel(key, direction) {
         const order = panelOrder.slice(), from = order.indexOf(key), to = from + direction
         if (to < 0 || to >= order.length) return
@@ -90,11 +126,11 @@ Item {
                     Rectangle {
                         Layout.preferredWidth: 62; Layout.preferredHeight: 62; color: "#172819"
                         Text { anchors.centerIn: parent; text: "♫"; color: "#c3e2a0"; font.pixelSize: 32; visible: artwork.status !== Image.Ready }
-                        Image { id: artwork; anchors.fill: parent; source: session.track.art || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                        Image { id: artwork; anchors.fill: parent; source: session.track.art || ""; cache: false; fillMode: Image.PreserveAspectFit; asynchronous: true }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
-                        Text { text: "SPOTIFY"; color: "#7f9b6b"; font.pixelSize: 10; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace" }
+                        SpotifyAttribution { targetUrl: session.track.url || "https://open.spotify.com/" }
                         Text { objectName: "playerTrackTitle"; Layout.fillWidth: true; text: session.track.title || qsTr("Your music, your way"); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.pixelSize: 16; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; maximumLineCount: 1; elide: Text.ElideRight }
                         Text { objectName: "playerTrackArtist"; Layout.fillWidth: true; text: session.track.artist || (session.authorized ? (session.integratedPlayback ? qsTr("Choose a track in Search or Library") : qsTr("Start playing in Spotify")) : qsTr("Connect Spotify in Settings")); color: "#89b86d"; font.pixelSize: 11; maximumLineCount: 1; elide: Text.ElideRight }
                         Text { objectName: "playerTrackTime"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: rack.time(session.track.position || 0) + " / " + rack.time(session.track.duration || 0); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 25; fontSizeMode: Text.HorizontalFit; minimumPixelSize: 16; maximumLineCount: 1 }
@@ -128,14 +164,15 @@ Item {
                 }
                 Text { text: Math.round(volumeSlider.value) + "%"; color: "#c8d6b6"; font.pixelSize: 11 }
             }
-            Text { Layout.fillWidth: true; text: session.error || (session.integratedPlayback && webPlayback.error ? webPlayback.error : session.track.device || (session.authorized && session.integratedPlayback ? webPlayback.status : session.status)); color: session.error || (session.integratedPlayback && webPlayback.error) ? "#f0b99a" : "#a6b49b"; font.pixelSize: 10; maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight }
+            Text { Layout.fillWidth: true; text: session.rateLimited ? session.rateLimitMessage : session.error || (session.integratedPlayback && webPlayback.error ? webPlayback.error : session.track.device || (session.authorized && session.integratedPlayback ? webPlayback.status : session.status)); color: session.rateLimited || session.error || (session.integratedPlayback && webPlayback.error) ? "#f0b99a" : "#a6b49b"; font.pixelSize: 10; maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight }
         }
     }
     Component {
         id: visualComponent
         Rectangle {
             implicitHeight: 108; color: "#080f13"; radius: 3; clip: true
-            LiveCanvas { anchors.fill: parent; visible: !fullVisualizer.presentationActive; analyzer: monitor; effect: rack.visualEffect; reducedMotion: rack.reducedMotion }
+            LiveCanvas { anchors.fill: parent; visible: !fullVisualizer.presentationActive; ambient: !rack.localAudioAllowed; animationActive: rack.pollingActive; analyzer: monitor; effect: rack.visualEffect; reducedMotion: rack.reducedMotion }
+            Text { anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 5; text: rack.localAudioAllowed ? qsTr("LOCAL AUDIO") : qsTr("AMBIENT · NOT AUDIO REACTIVE"); color: "#93ad7b"; font.pixelSize: 8 }
             Row {
                 anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 5; spacing: 3
                 RackButton { text: "⛶"; chrome: true; description: qsTr("Full screen"); implicitWidth: 25; implicitHeight: 23; onClicked: rack.openVisualizer() }
@@ -151,15 +188,40 @@ Item {
             }
         }
     }
-    Component { id: equalizerComponent; EqualizerPanel { equalizer: equalizerBackend; preferences: settingsStore } }
-    Component { id: browserComponent; MusicBrowser { spotify: session; navigationState: rack.browserNavigation } }
+    Component { id: equalizerComponent; EqualizerPanel { equalizer: equalizerBackend; preferences: settingsStore; available: rack.localAudioAllowed; onLocalToolsRequested: rack.requestLocalAudioTools() } }
+    Component {
+        id: browserComponent
+        MusicBrowser {
+            id: browserView
+            spotify: session; navigationState: rack.browserNavigation
+            Component.onCompleted: rack.musicBrowser = browserView
+            Component.onDestruction: if (rack.musicBrowser === browserView) rack.musicBrowser = null
+        }
+    }
     VisualizerFullscreen {
         id: fullVisualizer; objectName: "visualizerFullscreen"
-        analyzer: monitor; spotify: session; effect: rack.visualEffect; reducedMotion: rack.reducedMotion
+        analyzer: monitor; spotify: session; ambient: !rack.localAudioAllowed; effect: rack.visualEffect; reducedMotion: rack.reducedMotion
     }
     SettingsDialog {
         id: settings; spotify: session; audio: monitor; preferences: settingsStore; equalizer: equalizerBackend; reducedMotion: rack.reducedMotion
         playbackController: webPlayback; playbackRuntime: playbackEnvironment
+        connectionHandler: function() { rack.connectSpotify() }
+        localAudioTools: rack.localAudioTools
+        onLocalToolsRequested: rack.requestLocalAudioTools()
         onMotionPreferenceChanged: function(reduced) { rack.reducedMotion = reduced; settingsStore.write("reducedMotion", reduced) }
+    }
+    ConnectionDialog {
+        spotify: session
+        onSettingsRequested: rack.openSettings()
+        onConnectRequested: rack.connectSpotify()
+    }
+    LocalAudioDialog { id: localAudioConsent; onAccepted: rack.activateLocalAudioTools() }
+    SpotifyConsentDialog {
+        id: spotifyConsent
+        onConsentAccepted: {
+            rack.termsAcceptedThisSession = true
+            settingsStore.write("legal/acceptedVersion", "2026-11-10")
+            rack.requestSpotifyConnection(rack.consentRestoreOnly)
+        }
     }
 }

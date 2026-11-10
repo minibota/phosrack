@@ -2,26 +2,27 @@
 
 Phosrack has a native Windows build using Qt 6 and MSVC 2022. The Windows workflow
 creates a portable ZIP and an NSIS installer, uploaded as the
-`phosrack-0.3.2-windows-x64` Actions artifact and attached to the versioned release.
+`phosrack-0.3.3-windows-x64` Actions artifact and attached to the versioned release.
 
 ## Features and runtime status
 
 - Native Qt/QML playback, search, queue, library, equalizer controls and fullscreen UI.
 - Integrated Spotify Web Playback SDK in Qt WebEngine, with external-player fallback.
 - Browser OAuth and Windows Credential Manager session storage.
-- WASAPI loopback for visualization of the playback output, without selecting a microphone.
-- Optional Equalizer APO integration for device-level EQ. Its driver must be installed
-  and configured separately for the playback device.
+- Spotify mode uses ambient visuals; it does not capture sound or apply Phosrack EQ.
+- Separate Local audio tools use WASAPI output loopback and optional Equalizer APO
+  processing for non-Spotify sound. No microphone is selected. The APO driver must
+  be installed and configured separately for the playback device.
 
 A native build or clean deployment smoke test does not verify DRM playback or audio
 hardware. **Real Windows integrated audio playback, WASAPI and installed Equalizer APO
-processing have not yet been validated for v0.3.2.** See the
-[validation notes](validation-0.3.2.md) for the exact checks completed. The audible
+processing have not yet been validated for v0.3.3.** See the
+[validation notes](validation-0.3.3.md) for the exact checks completed. The audible
 Linux feasibility experiment does not establish Windows playback support on a given PC.
 
 ## Verified media capabilities
 
-The Windows CI runtime probe for application source
+The previous v0.3.2 Windows CI runtime probe for application source
 `4f048bcf4218d863f002bfd45d6eeb7c30b495f4` used Qt 6.8.3. It reported a secure
 loopback context, Opus/Vorbis decoding and successful Widevine MediaKeys creation
 for those formats. **AAC decoding is unavailable in this Qt build**, and AAC
@@ -34,12 +35,14 @@ Choosing a Widevine DLL does not add an audio decoder missing from the Qt build.
 
 ## Spotify and DRM setup
 
-v0.3.2 does not bundle a shared Spotify Client ID. Configure your own application in
+v0.3.3 does not bundle a shared Spotify Client ID. Configure your own application in
 **Settings > Spotify application setup**, enable **Web API** and **Web Playback SDK**
 in its developer dashboard, and register exactly `http://127.0.0.1:43821/callback`.
-Click **Connect Spotify** and authorize your Premium account. A Client Secret is
+Click **Connect Spotify**, accept the integration terms and authorize your Premium account. A Client Secret is
 never needed. Follow the full [setup instructions](../GETTING_STARTED.md#connect-spotify),
-including the reauthorization step when upgrading from v0.3.1.
+including any reauthorization requested for older grants. On subsequent launches,
+Phosrack restores a saved session and displays a prompt if browser authorization is
+needed. Spotify-imposed API waits remain in force after restarting.
 
 **Play in Phosrack** is the default playback mode. It needs a compatible Widevine
 module and media codecs; no official Spotify player needs to remain open. Phosrack
@@ -84,9 +87,13 @@ For a private build or fork, replace the empty CMake option with
 own public ID. The deployment/package reconfigure preserves that cached value.
 An older build cache can retain the previous ID, so set the option explicitly when
 reconfiguring. See [application configuration](packaging.md#spotify-application-configuration)
-for the remaining Spotify access restrictions. Official v0.3.2 builds use an empty default.
+for the remaining Spotify access restrictions. Official v0.3.3 builds use an empty default.
 
 ## Equalizer APO
+
+Use **Settings > Local audio tools** for non-Spotify sound. This suspends the
+Spotify session in Phosrack, retaining saved credentials for when you return. Stop
+Spotify in other players too; device-level processing cannot distinguish every app.
 
 Install Equalizer APO from its official project and configure its audio processing
 object for your playback device. In Phosrack Settings, set the APO configuration
@@ -95,9 +102,10 @@ Do not overwrite an unrelated APO configuration manually.
 
 Phosrack writes its own bounded gain configuration, preserves unrelated settings
 and creates a backup. The driver remains a separate installation. Its effect applies
-to the configured Windows output, including integrated playback, rather than processing
-Spotify audio through an API. See the validation record before assuming hardware
-compatibility has been tested.
+to the configured Windows output. Returning to Spotify mode disables Phosrack's
+EQ configuration first; if that fails, connection is blocked until the EQ is bypassed.
+Unrelated APO filters are not controlled by Phosrack. See the validation record
+before assuming hardware compatibility has been tested.
 
 ## References
 

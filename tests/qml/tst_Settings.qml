@@ -17,6 +17,8 @@ TestCase {
         property bool usesDefaultClientId: hasDefaultClientId && clientId === defaultId
         property bool authorized: false
         property bool busy: false
+        property bool rateLimited: false
+        property string rateLimitMessage: "Spotify has paused requests."
         property string credentialStorage: "KWallet"
         property string error: ""
         property string status: "Not connected"
@@ -48,7 +50,7 @@ TestCase {
     Component { id: component; Rack.SettingsDialog { spotify: account; audio: audioMock; preferences: preferencesMock } }
     function init() {
         account.clientId = account.defaultId; account.hasDefaultClientId = true
-        account.authorized = false; account.busy = false; account.error = ""
+        account.authorized = false; account.busy = false; account.error = ""; account.rateLimited = false
         account.connections = 0; account.disconnections = 0; account.connectedId = ""
     }
     function dialog() {
@@ -156,6 +158,16 @@ TestCase {
         clickConnect(view)
         compare(account.disconnections, 1)
         compare(account.connections, 0)
+        view.close()
+    }
+    function test_cooldownDisablesConnectionButAllowsDisconnect() {
+        account.rateLimited = true
+        const view = dialog()
+        compare(findChild(view, "connectSpotifyButton").enabled, false)
+        account.authorized = true
+        compare(findChild(view, "connectSpotifyButton").enabled, true)
+        clickConnect(view)
+        compare(account.disconnections, 1)
         view.close()
     }
 }

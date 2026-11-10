@@ -32,6 +32,15 @@ bool writeFile(const QString &path,const QByteArray &data){QFile file(path);retu
 class WindowsEqualizerTest : public QObject {
     Q_OBJECT
 private slots:
+    void spotifyModeBypassesAndRejectsEnable() {
+        qputenv("PHOSRACK_TEST_MODE","1");
+        Equalizer eq;eq.setEnabled(true);QVERIFY(eq.enabled());
+        eq.setPermitted(false);QVERIFY(!eq.enabled());
+        eq.setEnabled(true);QVERIFY(!eq.enabled());
+        QVERIFY(eq.ensureBypassed());
+        eq.setPermitted(true);eq.setEnabled(true);QVERIFY(eq.enabled());
+    }
+
     void previewStateNeverTouchesApoDirectory() {
 #ifdef Q_OS_WIN
         TestMode mode(true);
@@ -63,6 +72,23 @@ private slots:
         eq.setEnabled(false);QVERIFY(!eq.enabled());QVERIFY(!eq.running());
         QVERIFY(!readFile(managed).contains("Filter"));
         QVERIFY(readFile(config).startsWith(original));
+#else
+        QSKIP("Equalizer APO integration runs on Windows.");
+#endif
+    }
+    void staleManagedFiltersAreBypassedBeforeSpotify() {
+#ifdef Q_OS_WIN
+        IsolatedSettings settings;
+        TestMode mode(false);
+        QTemporaryDir directory;
+        const auto managed=QDir(directory.path()).filePath("phosrack.txt");
+        QVERIFY(writeFile(managed,"# Phosrack - managed local Equalizer APO filters\nPreamp: 3 dB\nFilter 1: ON PK Fc 1000 Hz Gain 3 dB Q 1.4\n"));
+        Equalizer eq;eq.setApoDirectory(directory.path());QVERIFY(!eq.enabled());
+        QVERIFY(eq.ensureBypassed());QVERIFY(!readFile(managed).contains("Filter"));
+        QVERIFY(readFile(managed).contains("Preamp: 0.000 dB"));
+        QVERIFY(writeFile(managed,"# Unrelated manual file\nPreamp: 1 dB\n"));
+        QVERIFY(!eq.ensureBypassed());QVERIFY(!eq.error().isEmpty());
+        QCOMPARE(readFile(managed),QByteArray("# Unrelated manual file\nPreamp: 1 dB\n"));
 #else
         QSKIP("Equalizer APO integration runs on Windows.");
 #endif

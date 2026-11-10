@@ -6,17 +6,18 @@
 #include <QQueue>
 #include <QUrlQuery>
 #include <QTemporaryDir>
+#include <QDesktopServices>
 #include <cstring>
 #include "spotifyclient.h"
 #include "spotifyconfig.h"
 
 class MemoryReply : public QNetworkReply {
 public:
-    MemoryReply(const QNetworkRequest &request,int status,const QByteArray &body,int delay,QObject *parent)
+    MemoryReply(const QNetworkRequest &request,int status,const QByteArray &body,int delay,const QByteArray &retryAfter,QObject *parent)
         :QNetworkReply(parent),data(body) {
         setRequest(request);setUrl(request.url());
         setAttribute(QNetworkRequest::HttpStatusCodeAttribute,status);
-        setRawHeader("Retry-After","120");
+        setRawHeader("Retry-After",retryAfter);
         open(QIODevice::ReadOnly | QIODevice::Unbuffered);
         QTimer::singleShot(delay,this,[this]{setFinished(true);emit readyRead();emit finished();});
     }
@@ -33,7 +34,7 @@ private:
 };
 class MemoryNetwork : public QNetworkAccessManager {
 public:
-    struct Response {int status;QByteArray data;int delay=0;};
+    struct Response {int status;QByteArray data;int delay=0;QByteArray retryAfter="120";};
     struct Sent {QNetworkRequest request;QByteArray method;QByteArray body;};
     QQueue<Response> responses;
     QList<Sent> requests;
@@ -42,8 +43,15 @@ protected:
         const QByteArray method=operation==PostOperation?QByteArray("POST"):request.attribute(QNetworkRequest::CustomVerbAttribute).toByteArray();
         requests.append({request,method,body?body->readAll():QByteArray()});
         const auto response=responses.isEmpty()?Response{204,{}}:responses.dequeue();
-        return new MemoryReply(request,response.status,response.data,response.delay,this);
+        return new MemoryReply(request,response.status,response.data,response.delay,response.retryAfter,this);
     }
+};
+class AuthorizationUrlCapture : public QObject {
+    Q_OBJECT
+public:
+    QUrl url;
+public slots:
+    void capture(const QUrl &value) {url=value;}
 };
 class SpotifyClientTest : public QObject {
     Q_OBJECT
@@ -166,6 +174,205 @@ private slots:
         client.refreshState();client.playPause();
         QCOMPARE(transport.requests.size(),1);
         QVERIFY(client.error().contains("pause"));
+    }
+    void startupRestoresStoredSessionWithoutOpeningAuthorization() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_clientId=QString(32,'a');client.m_refreshToken="saved-refresh";
+        client.m_streamingAuthorized=true;
+        transport.responses.enqueue({200,R"({"access_token":"restored-access","expires_in":3600})"});
+        client.restoreSession();QTRY_VERIFY(client.authorized());
+        QVERIFY(!client.authorizationRequired());QVERIFY(!client.m_callback.isListening());
+        QTRY_COMPARE(transport.requests.size(),3);
+        client.restoreSession();QCOMPARE(transport.requests.size(),3);
+    }
+    void startupWithoutCredentialsRequestsConsentButDoesNotOpenBrowser() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        QVERIFY(!client.authorizationRequired());
+        client.restoreSession();
+        QVERIFY(client.authorizationRequired());QVERIFY(!client.busy());
+        QVERIFY(!client.m_callback.isListening());QVERIFY(transport.requests.isEmpty());
+        SpotifyClient configured(nullptr,&transport);configured.m_clientId=QString(32,'a');
+        configured.restoreSession();
+        QVERIFY(configured.authorizationRequired());QVERIFY(!configured.busy());
+        QVERIFY(!configured.m_callback.isListening());QVERIFY(transport.requests.isEmpty());
+    }
+    void permanentTokenFailureRequiresUserActionWithoutRepeatedRequests() {
+        for(const auto error:{"invalid_client","invalid_request","invalid_grant"}) {
+            MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+            client.m_clientId=QString(32,'a');client.m_refreshToken="saved-refresh";
+            transport.responses.enqueue({400,QJsonDocument(QJsonObject{{"error",error}}).toJson()});
+            client.restoreSession();QTRY_VERIFY(client.authorizationRequired());
+            QVERIFY(!client.m_refresh.isActive());QVERIFY(!client.m_callback.isListening());
+            QVERIFY(!client.authorized());QVERIFY(!client.busy());QCOMPARE(transport.requests.size(),1);
+        }
+    }
+    void onlyFreshAuthorizationClearsExplicitSignOut() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_clientId=QString(32,'a');client.m_refreshToken="leftover-refresh";
+        client.setSignedOut(true);client.refreshToken();QVERIFY(transport.requests.isEmpty());
+        transport.responses.enqueue({200,R"({"access_token":"new-access","refresh_token":"new-refresh","scope":"streaming user-read-private user-read-email"})"});
+        client.requestToken("grant_type=authorization_code");QTRY_VERIFY(client.authorized());
+        QVERIFY(!client.m_signedOut);QVERIFY(!client.authorizationRequired());
+        QCOMPARE(client.m_refreshToken,QByteArray("new-refresh"));
+    }
+    void manualConnectionAfterSignOutOpensFreshConsentWithoutReusingToken() {
+        AuthorizationUrlCapture capture;
+        struct UrlHandler {
+            explicit UrlHandler(QObject *receiver){QDesktopServices::setUrlHandler("https",receiver,"capture");}
+            ~UrlHandler(){QDesktopServices::unsetUrlHandler("https");}
+        } handler(&capture);
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_clientId=QString(32,'a');client.m_refreshToken="leftover-refresh";client.setSignedOut(true);
+        client.connectSpotify();
+        QVERIFY(client.m_callback.isListening());QVERIFY(capture.url.isValid());
+        QCOMPARE(capture.url.host(),QString("accounts.spotify.com"));
+        QCOMPARE(capture.url.path(),QString("/authorize"));
+        QVERIFY(transport.requests.isEmpty());QVERIFY(client.m_signedOut);
+        client.disconnectSpotify();QVERIFY(!client.m_callback.isListening());
+    }
+    void startupAndRefreshRespectExistingCooldown() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        client.m_clientId=QString(32,'a');client.m_refreshToken="saved-refresh";
+        client.recordRateLimit(client.clientId(),"120",{});
+        client.restoreSession();client.refreshToken();client.refreshQueue(true);client.refreshDevices();
+        QVERIFY(transport.requests.isEmpty());QVERIFY(!client.busy());
+        QVERIFY(!client.authorizationRequired());QVERIFY(client.m_refresh.isActive());
+        QCOMPARE(client.retryAfterSeconds(),qint64(120));
+        QVERIFY(client.error().contains("0:02:00"));
+    }
+    void obsoleteRequestsRetainLongerServerCooldownAndQuotaReason() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
+        transport.responses.enqueue({429,R"({"error":{"reason":"QUOTA_EXCEEDED"}})",10,"172800"});
+        transport.responses.enqueue({429,"{}",30,"60"});
+        client.search("old");client.search("new");
+        QTRY_VERIFY(client.rateLimited());QTRY_VERIFY(!client.collectionBusy());
+        QVERIFY(client.retryAfterSeconds()>172790);
+        QVERIFY(client.rateLimitMessage().contains("developer account"));
+        client.refreshState();client.refreshDevices();client.refreshQueue(true);
+        QCOMPARE(transport.requests.size(),2);
+        const auto deadline=client.retryAt();
+        client.disconnectSpotify();
+        QCOMPARE(client.retryAt(),deadline);QVERIFY(client.rateLimited());
+    }
+    void lateRateLimitAfterDisconnectIsStillHonored() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
+        transport.responses.enqueue({429,"{}",10,"26156"});
+        client.refreshState();client.disconnectSpotify();
+        QTRY_VERIFY(client.rateLimited());
+        QVERIFY(client.retryAfterSeconds()>26150);QVERIFY(!client.authorized());
+        QVERIFY(!client.authorizationRequired());QVERIFY(client.m_signedOut);
+        QVERIFY(client.rateLimitMessage().contains("07:15:"));
+    }
+    void cooldownRestoresAcrossInstancesAndClientIdSwitches() {
+        struct IsolatedConfiguration {
+            QTemporaryDir directory;
+            QSettings::Format format=QSettings::defaultFormat();
+            QByteArray testMode=qgetenv("PHOSRACK_TEST_MODE");
+            IsolatedConfiguration() {
+                QSettings::setDefaultFormat(QSettings::IniFormat);
+                QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,directory.path());
+                qunsetenv("PHOSRACK_TEST_MODE");
+            }
+            ~IsolatedConfiguration() {
+                QSettings::setDefaultFormat(format);qputenv("PHOSRACK_TEST_MODE",testMode);
+            }
+        } isolated;
+        QVERIFY(isolated.directory.isValid());
+        const auto application=QString(32,'f');QDateTime deadline;
+        {
+            MemoryNetwork transport;SpotifyClient client(nullptr,&transport);client.setClientId(application);
+            client.recordRateLimit(application,"172800",{});deadline=client.retryAt();
+            client.clearSession(false);QCOMPARE(client.retryAt(),deadline);
+        }
+        {
+            MemoryNetwork transport;SpotifyClient restored(nullptr,&transport);
+            QCOMPARE(restored.clientId(),application);QCOMPARE(restored.retryAt(),deadline);
+            session(restored);restored.refreshState();restored.refreshQueue(true);
+            QVERIFY(transport.requests.isEmpty());
+            restored.setClientId(QString(32,'e'));QVERIFY(!restored.rateLimited());
+            restored.setClientId(application);QCOMPARE(restored.retryAt(),deadline);
+            restored.recordRateLimit(application,"60",{});QCOMPARE(restored.retryAt(),deadline);
+        }
+        {
+            // Persist the user's sign-out intent independently of protected
+            // storage: this test never reads or mutates actual credentials.
+            MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+            client.setSignedOut(true);QVERIFY(client.m_settings.value("spotify/signedOut/"+application).toBool());
+        }
+        {
+            MemoryNetwork transport;SpotifyClient signedOut(nullptr,&transport);
+            QVERIFY(signedOut.m_signedOut);signedOut.m_refreshToken="leftover-protected-token";
+            signedOut.restoreSession();
+            QVERIFY(signedOut.authorizationRequired());QVERIFY(transport.requests.isEmpty());
+            QVERIFY(!signedOut.busy());QVERIFY(!signedOut.m_callback.isListening());
+            signedOut.suspendSession();QVERIFY(signedOut.m_signedOut);
+#ifndef Q_OS_WIN
+            // A locked/unavailable KWallet cannot delete the entry. Sign-out
+            // remains durable and no immediate reconnect prompt is shown.
+            signedOut.disconnectSpotify();
+            QVERIFY(signedOut.m_signedOut);QVERIFY(!signedOut.authorizationRequired());
+            QVERIFY(signedOut.m_settings.value("spotify/signedOut/"+application).toBool());
+            QVERIFY(signedOut.m_error.contains("Automatic sign-in is disabled"));
+#endif
+        }
+    }
+    void cooldownParsesHttpDatesAndExpiresWithoutStaleError() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
+        const auto future=QDateTime::currentDateTimeUtc().addDays(2);
+        client.recordRateLimit(client.clientId(),future.toString(Qt::RFC2822Date).toLatin1(),{});
+        QVERIFY(client.retryAfterSeconds()>172790);
+        QSignalSpy changed(&client,&SpotifyClient::rateLimitChanged);
+        client.m_backoffUntil=QDateTime::currentMSecsSinceEpoch()-1;
+        client.updateRateLimit();
+        QVERIFY(!client.rateLimited());QVERIFY(client.rateLimitMessage().isEmpty());
+        QVERIFY(client.error().isEmpty());QCOMPARE(changed.size(),1);
+    }
+    void queueRefreshSharesFreshResultsAndInvalidatesOnTrackChange() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
+        client.m_track["uri"]="spotify:track:first";
+        client.refreshQueue();client.refreshQueue();QTRY_VERIFY(!client.collectionBusy());
+        QCOMPARE(transport.requests.size(),1);
+        QSignalSpy completed(&client,&SpotifyClient::collectionsChanged);
+        client.refreshQueue();QCOMPARE(transport.requests.size(),1);QVERIFY(!completed.isEmpty());
+        client.refreshQueue(true);QTRY_VERIFY(!client.collectionBusy());QCOMPARE(transport.requests.size(),2);
+        client.m_track["uri"]="spotify:track:second";
+        client.refreshQueue();QTRY_VERIFY(!client.collectionBusy());QCOMPARE(transport.requests.size(),3);
+        client.m_track.remove("uri");client.m_track["url"]="https://open.spotify.com/track/third";
+        client.refreshQueue();QTRY_VERIFY(!client.collectionBusy());QCOMPARE(transport.requests.size(),4);
+        client.m_track["url"]="https://open.spotify.com/track/fourth";
+        client.refreshQueue();QTRY_VERIFY(!client.collectionBusy());QCOMPARE(transport.requests.size(),5);
+    }
+    void sdkPlaybackDoesNotPollRestForItsOwnState() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.setLocalPlaybackDevice("sdk-device");
+        client.updateLocalPlaybackState({{"active",true},{"playing",true},{"uri","spotify:track:test"}});
+        QVERIFY(!client.m_poll.isActive());client.pollPlaybackState();
+        client.setActive(false);client.setActive(true);QVERIFY(transport.requests.isEmpty());
+        client.updateLocalPlaybackState({{"active",true},{"playing",false}});
+        QVERIFY(!client.m_poll.isActive());
+        client.updateLocalPlaybackState({{"active",false}});
+        QVERIFY(client.m_poll.isActive());QCOMPARE(client.m_poll.interval(),30000);
+        client.setIntegratedPlayback(false);QCOMPARE(client.m_poll.interval(),15000);
+    }
+    void queueTrackChangesDuringRequestTriggerOneCoalescedRefresh() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
+        client.m_track["uri"]="spotify:track:first";
+        transport.responses.enqueue({200,R"({"queue":[]})",20});
+        client.refreshQueue();
+        client.m_track["uri"]="spotify:track:second";
+        client.refreshQueue();client.refreshQueue();
+        QTRY_COMPARE(transport.requests.size(),2);QTRY_VERIFY(!client.collectionBusy());
+        QCOMPARE(client.m_queueTrackUri,QString("spotify:track:second"));
+        client.refreshQueue();QCOMPARE(transport.requests.size(),2);
+    }
+    void suspendingRetainsProtectedSessionAndDoesNotRequestAuthorization() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.setLocalPlaybackDevice("sdk-device");
+        QSignalSpy changed(&client,&SpotifyClient::authorizationRequiredChanged);
+        client.suspendSession();
+        QVERIFY(!client.authorized());QVERIFY(!client.localPlaybackReady());
+        QVERIFY(!client.authorizationRequired());QVERIFY(changed.isEmpty());
+        QVERIFY(transport.requests.isEmpty());
     }
     void refreshesAndRotatesToken() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);
@@ -310,6 +517,7 @@ private slots:
         transport.responses.enqueue({400,R"({"error":"invalid_grant"})"});
         client.refreshToken();QTRY_VERIFY(!client.m_refreshing);
         QVERIFY(!client.authorized());QVERIFY(client.m_refreshToken.isEmpty());
+        QVERIFY(client.m_signedOut);
     }
     void searchesEncodedQueriesAndIgnoresOldResults() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);

@@ -1,6 +1,6 @@
 # Desktop packaging
 
-Phosrack 0.3.2 installs the application with embedded QML/translations and playback
+Phosrack 0.3.3 installs the application with embedded QML/translations and playback
 bridge, a Linux PipeWire EQ worker, desktop entry, AppStream metadata, icon,
 documentation and GPL license. Its desktop ID is `io.phosrack.Phosrack`.
 
@@ -8,11 +8,11 @@ RPM/DEB use their host distribution's Qt/KDE libraries, including Qt WebEngine a
 WebChannel. Flatpak uses the KDE runtime and WebEngine BaseApp. Windows deploys the
 Qt runtime, WebEngine helper/resources and compiler runtime. **Widevine is not included
 in any package.** Runtime DRM, codec and authenticated playback checks are distinct
-from build and packaging checks; see [validation-0.3.2.md](validation-0.3.2.md).
+from build and packaging checks; see [validation-0.3.3.md](validation-0.3.3.md).
 
 ## Spotify application configuration
 
-Official v0.3.2 builds use **no bundled Spotify Client ID** on Linux, Windows and
+Official v0.3.3 builds use **no bundled Spotify Client ID** on Linux, Windows and
 Flatpak. Each user enters their own public ID under **Settings > Spotify application
 setup**, then completes PKCE browser authorization. The ID identifies an application;
 it is not an account password, access token or Client Secret. The setting persists.
@@ -38,11 +38,14 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 Users of such a build can override its ID under **Settings > Advanced Spotify settings**.
 For a Flatpak fork, set the same option in the application module's `config-opts`.
 Bundling an ID does not grant public access: the application's allowlist and Premium
-requirements still apply. Never compile or distribute a Client Secret.
+requirements still apply. Developer quotas are shared across an owner's apps, so
+changing IDs is not a quota reset. A personal/default ID does not establish approval
+for broader distribution; see [policy review](spotify-policy.md). Never compile or
+distribute a Client Secret.
 
 Enable **Web API** and **Web Playback SDK** for the chosen application and register
 exactly `http://127.0.0.1:43821/callback`. Upgrading users must reconnect for the new
-streaming/profile permissions. Historical v0.3.1 packages are unchanged; v0.3.2 users
+streaming/profile permissions. Historical v0.3.1 packages are unchanged; v0.3.3 users
 who relied on their shared ID must configure their own application. See
 [Spotify setup](../GETTING_STARTED.md#connect-spotify) and
 [Spotify's access rules](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
@@ -56,7 +59,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPHOSRACK_SPOTIFY_CLIEN
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 (cd build && cpack -G RPM)
-sudo rpm --define '_pkgverify_level digest' -Uvh ./build/phosrack-0.3.2-1.fc45.x86_64.rpm
+sudo rpm --define '_pkgverify_level digest' -Uvh ./build/phosrack-0.3.3-1.fc45.x86_64.rpm
 ```
 
 CPack uses RPM's ELF dependency scanner with explicit Qt Quick, WebEngine, WebChannel
@@ -80,9 +83,9 @@ Build inside Debian 13 (trixie), using its own Qt 6.8 / KF6 libraries:
 ```sh
 podman build -t phosrack-debian -f packaging/debian/Dockerfile .
 container_id=$(podman create phosrack-debian)
-podman cp "$container_id:/build/phosrack_0.3.2_amd64.deb" .
+podman cp "$container_id:/build/phosrack_0.3.3_amd64.deb" .
 podman rm "$container_id"
-sudo apt install ./phosrack_0.3.2_amd64.deb
+sudo apt install ./phosrack_0.3.3_amd64.deb
 ```
 
 The Dockerfile also works with Docker and includes Qt WebEngine/WebChannel development
@@ -98,8 +101,8 @@ The manifest uses `org.kde.Platform` / `org.kde.Sdk` 6.10,
 ```sh
 flatpak install --user flathub org.kde.Platform//6.10 org.kde.Sdk//6.10 io.qt.qtwebengine.BaseApp//6.10
 flatpak-builder --user --force-clean --repo=repo flatpak-build packaging/flatpak/io.phosrack.Phosrack.json
-flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo repo phosrack-0.3.2-x86_64.flatpak io.phosrack.Phosrack
-flatpak install --user --reinstall ./phosrack-0.3.2-x86_64.flatpak
+flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo repo phosrack-0.3.3-x86_64.flatpak io.phosrack.Phosrack
+flatpak install --user --reinstall ./phosrack-0.3.3-x86_64.flatpak
 flatpak run io.phosrack.Phosrack
 ```
 
@@ -119,8 +122,9 @@ Required permissions are explicit:
 
 The manifest does not grant the whole home directory, whole session bus or
 `flatpak-spawn --host`. Audio-server access is broader than a capture-only permission;
-Phosrack's visualizer enumerates and captures output sinks. The application does not
-offer microphone inputs.
+Phosrack's local-audio visualizer enumerates and captures output sinks only after
+entering Local audio tools. Spotify mode disables monitoring and Phosrack EQ. The
+application does not offer microphone inputs.
 
 A host Widevine module in another location must be selected through the file chooser
 and remain accessible to the sandbox on subsequent launches. A path visible on the host
@@ -130,8 +134,8 @@ or audible playback; the validation record identifies these checks separately.
 
 The KDE runtime supplies PipeWire client tools, modules and client library. The EQ
 worker owns its streams and filters without a filter-chain daemon, manager permission
-or host command wrapper. Test playback, wallet authorization, routing and live visuals
-on a normal desktop after installation.
+or host command wrapper. Test Spotify playback and wallet authorization separately
+from non-Spotify local routing and reactive visuals on a normal desktop after installation.
 
 ## Windows
 
@@ -144,15 +148,18 @@ hardware/DRM validation limits.
 ## Publication
 
 Source and installers are published at [minibota/phosrack](https://github.com/minibota/phosrack).
-The v0.3.2 release targets RPM, DEB, Flatpak, Windows EXE and portable ZIP packages.
-Attach installers to the GitHub release. Keep a versioned `releases/v0.3.2/` index and
+The v0.3.3 release targets RPM, DEB, Flatpak, Windows EXE and portable ZIP packages.
+Attach installers to the GitHub release. Keep a versioned `releases/v0.3.3/` index and
 SHA256 checksums in Git; packages over GitHub's 100 MiB file limit must not be committed
 to the repository. Old release artifacts and validation records remain unchanged.
 
 Before Flathub or distribution submission, verify application-ID ownership, complete
 publisher/contact metadata and the respective review requirements. The local-source
 manifest does not submit anything to Flathub. Public source/downloads do not establish
-Spotify approval or wider API access. WebEngine/Chromium licenses and notices must
+Spotify approval or wider API access. Include [PRIVACY.md](../PRIVACY.md) and
+[TERMS.md](../TERMS.md) in release documentation and retain the initial connection
+consent flow. The [policy review](spotify-policy.md) records unresolved public
+distribution questions. WebEngine/Chromium licenses and notices must
 accompany redistributed runtime components; DRM is not redistributed.
 
 References: [CPack](https://cmake.org/cmake/help/latest/module/CPack.html),

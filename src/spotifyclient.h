@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include <QObject>
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -20,6 +21,11 @@ class SpotifyClient : public QObject {
     Q_PROPERTY(bool hasDefaultClientId READ hasDefaultClientId CONSTANT)
     Q_PROPERTY(bool usesDefaultClientId READ usesDefaultClientId NOTIFY clientIdChanged)
     Q_PROPERTY(bool authorized READ authorized NOTIFY sessionChanged)
+    Q_PROPERTY(bool authorizationRequired READ authorizationRequired NOTIFY authorizationRequiredChanged)
+    Q_PROPERTY(bool rateLimited READ rateLimited NOTIFY rateLimitChanged)
+    Q_PROPERTY(qint64 retryAfterSeconds READ retryAfterSeconds NOTIFY rateLimitChanged)
+    Q_PROPERTY(QDateTime retryAt READ retryAt NOTIFY rateLimitChanged)
+    Q_PROPERTY(QString rateLimitMessage READ rateLimitMessage NOTIFY rateLimitChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY sessionChanged)
     Q_PROPERTY(QString status READ status NOTIFY sessionChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
@@ -44,9 +50,14 @@ public:
     bool usesDefaultClientId() const {return hasDefaultClientId()&&m_clientId==m_defaultClientId;}
     void setClientId(const QString &id);
     bool authorized() const {return !m_accessToken.isEmpty();}
+    bool authorizationRequired() const {return m_authorizationRequired;}
+    bool rateLimited() const {return retryAfterSeconds()>0;}
+    qint64 retryAfterSeconds() const;
+    QDateTime retryAt() const {return QDateTime::fromMSecsSinceEpoch(m_backoffUntil);}
+    QString rateLimitMessage() const;
     bool busy() const {return m_connecting||m_command;}
     QString status() const {return m_status;}
-    QString error() const {return m_error;}
+    QString error() const {return rateLimited()?rateLimitMessage():m_error;}
     QVariantMap track() const;
     QVariantList devices() const {return m_devices;}
     bool active() const {return m_active;}
@@ -74,7 +85,9 @@ public:
     void clearLocalPlaybackDevice();
     void updateLocalPlaybackState(const QVariantMap &state);
     Q_INVOKABLE void connectSpotify();
+    Q_INVOKABLE void restoreSession();
     Q_INVOKABLE void disconnectSpotify();
+    Q_INVOKABLE void suspendSession();
     Q_INVOKABLE void resetToDefaultClientId();
     Q_INVOKABLE void refreshState();
     Q_INVOKABLE void refreshDevices();
@@ -88,7 +101,7 @@ public:
     Q_INVOKABLE void transfer(const QString &deviceId);
     Q_INVOKABLE void clearError();
     Q_INVOKABLE void search(const QString &query, bool more=false);
-    Q_INVOKABLE void refreshQueue();
+    Q_INVOKABLE void refreshQueue(bool force=false);
     Q_INVOKABLE void loadLibrary(const QString &kind, bool more=false);
     Q_INVOKABLE void openCollection(const QString &uri);
     Q_INVOKABLE void loadMoreLibrary();
@@ -97,6 +110,8 @@ public:
 signals:
     void clientIdChanged();
     void sessionChanged();
+    void authorizationRequiredChanged();
+    void rateLimitChanged();
     void trackChanged();
     void devicesChanged();
     void errorChanged();
@@ -112,6 +127,16 @@ signals:
 private:
     friend class SpotifyClientTest;
     using Result=std::function<void(const QJsonObject &,int)>;
+    void startSession(bool interactive);
+    void continueAuthorization();
+    void setAuthorizationRequired(bool required);
+    void setSignedOut(bool signedOut);
+    void restoreRateLimit();
+    void recordRateLimit(const QString &clientId,const QByteArray &retryAfter,const QJsonObject &response);
+    void updateRateLimit();
+    void deferTokenRefresh();
+    void updatePolling();
+    void pollPlaybackState();
     void beginOAuth();
     void acceptCallback();
     void requestToken(const QByteArray &form);
@@ -119,14 +144,15 @@ private:
     void api(const QByteArray &method,const QString &path,const QJsonObject &body,Result done,bool command=false,std::function<void()> failed={},std::function<bool()> current={});
     void control(const QByteArray &method,const QString &path,const QJsonObject &body={});
     void fail(const QString &message);
-    void persistRefresh();
+    bool persistRefresh();
     void saveClientIdOverride();
-    void clearSession(bool forgetStoredToken);
+    void clearSession(bool forgetStoredToken,bool requestAuthorization=true);
 #ifndef Q_OS_WIN
     void withWallet();
 #endif
-    void forgetRefresh();
+    bool forgetRefresh();
     void clearCollections();
+    QString queueTrackIdentity() const;
     void requestLibrary(bool more);
     bool playbackCommandAllowed();
     QString playbackPath(const QString &path) const;
@@ -154,7 +180,11 @@ private:
     bool m_searchLoading=false,m_queueLoading=false,m_libraryLoading=false;
     bool m_hasMoreSearch=false,m_hasMoreLibrary=false;
     int m_generation=0;
-    qint64 m_backoffUntil=0;
+    qint64 m_backoffUntil=0,m_queueFetchedAt=0,m_devicesFetchedAt=0;
+    QString m_queueTrackUri;
+    bool m_quotaExceeded=false,m_rateLimitPublished=false,m_devicesLoading=false;
+    bool m_authorizationRequired=false,m_interactiveLogin=false,m_restoreAttempted=false;
+    bool m_signedOut=false;
     bool m_connecting=false,m_refreshing=false,m_polling=false,m_command=false,m_active=true;
     bool m_integratedPlayback=true,m_streamingAuthorized=false,m_reauthorizeStreaming=false,m_oauthStreamingRequested=false;
     bool m_localPlaybackActive=false;

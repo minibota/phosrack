@@ -9,16 +9,25 @@
   <project_license>GPL-3.0-or-later</project_license>
   <developer><name>Phosrack contributors</name></developer>
   <url type="homepage">https://github.com/minibota/phosrack</url>
+  <url type="help">https://github.com/minibota/phosrack/blob/main/GETTING_STARTED.md</url>
   <url type="bugtracker">https://github.com/minibota/phosrack/issues</url>
   <launchable type="desktop-id">io.phosrack.Phosrack.desktop</launchable>
   <description>
-    <p>Phosrack is a desktop music rack inspired by classic modular media players. Its compact interface combines Spotify playback, search, queue and library views with an original live visualizer for your local audio output.</p>
+    <p>Phosrack is a desktop music rack inspired by classic modular media players. Its compact interface offers Spotify playback, search, queue and library views with original ambient phosphor visuals. Separate local audio tools are available for non-Spotify sound.</p>
     <p>Configure your own Spotify developer Client ID and authorize your Premium account in the browser. Integrated playback uses the official Web Playback SDK inside Qt WebEngine and requires a compatible existing Widevine module, which is not bundled. An external Spotify player mode is also available. Spotify's application-access restrictions still apply.</p>
-    <p>The local ten-band equalizer offers editable presets and preamp control. A fullscreen visualizer displays current and upcoming track information.</p>
+    <p>Spotify mode does not capture system audio or apply Phosrack EQ. The separate local tools suspend Spotify and provide a ten-band equalizer with editable presets and an audio-reactive visualizer. Spotify fullscreen can display current and upcoming track information over ambient animation.</p>
   </description>
   <categories><category>AudioVideo</category><category>Audio</category></categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.3" date="2026-11-10">
+      <description>
+        <p>Restore saved Spotify sessions on startup and show a clear sign-in prompt when browser authorization is needed.</p>
+        <p>Reduce background requests, preserve Spotify cooldowns across restarts and show a live wait time.</p>
+        <p>Complete browser authorization with a localized, accessible Phosrack confirmation page.</p>
+        <p>Keep Spotify playback separate from non-Spotify local audio analysis and equalization, with a clear initial privacy and terms notice.</p>
+      </description>
+    </release>
     <release version="0.3.2" date="2026-11-07">
       <description>
         <p>Play Spotify inside Phosrack with Qt WebEngine and the official Web Playback SDK, or choose an external player in Settings.</p>

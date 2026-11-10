@@ -11,6 +11,9 @@ Dialog {
     property var equalizer
     property var playbackController: null
     property var playbackRuntime: null
+    property var connectionHandler: null
+    property bool localAudioTools: false
+    signal localToolsRequested()
     property bool reducedMotion: false
     property bool advancedSpotifyExpanded: false
     property bool clientDraftModified: false
@@ -30,7 +33,8 @@ Dialog {
         if (spotify.busy) return
         if (spotify.authorized) spotify.disconnectSpotify()
         else if (applyClientDraft()) {
-            spotify.connectSpotify()
+            if (connectionHandler) connectionHandler()
+            else spotify.connectSpotify()
             if (!/^[a-fA-F0-9]{32}$/.test(spotify.clientId)) advancedSpotifyExpanded = true
         }
     }
@@ -62,6 +66,10 @@ Dialog {
         ScrollBar.vertical: RackScrollBar {}
         ColumnLayout {
             width: settingsScroll.availableWidth; spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                RackButton { text: settings.localAudioTools ? qsTr("Return to Spotify") : qsTr("Local audio tools…"); onClicked: { settings.close(); if (settings.localAudioTools && settings.connectionHandler) settings.connectionHandler(); else settings.localToolsRequested() } }
+            }
             Text { text: "SPOTIFY"; color: "#baff74"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 13 }
             Text { Layout.fillWidth: true; visible: !spotify.authorized; text: spotify.hasDefaultClientId ? qsTr("Sign in with your Spotify account in your browser, then return to Phosrack.") : qsTr("Create your own Spotify developer application, then enter its Client ID below. No Client Secret is needed."); color: "#b3bda9"; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
@@ -69,13 +77,14 @@ Dialog {
                 RackButton {
                     objectName: "connectSpotifyButton"
                     text: spotify.authorized ? qsTr("Disconnect") : spotify.busy ? qsTr("Connecting…") : qsTr("Connect Spotify")
-                    lit: spotify.authorized; enabled: !spotify.busy
+                    lit: spotify.authorized; enabled: !spotify.busy && (spotify.authorized || !spotify.rateLimited)
                     onClicked: settings.connectAccount()
                 }
                 RackButton { objectName: "cancelSpotifyButton"; text: qsTr("Cancel"); visible: spotify.busy && !spotify.authorized; onClicked: spotify.disconnectSpotify() }
             }
-            Text { Layout.fillWidth: true; text: spotify.error || spotify.status; color: spotify.error ? "#f0b99a" : "#baff74"; font.pixelSize: 11; wrapMode: Text.Wrap }
+            Text { Layout.fillWidth: true; text: spotify.rateLimited ? spotify.rateLimitMessage : spotify.error || spotify.status; color: spotify.rateLimited || spotify.error ? "#f0b99a" : "#baff74"; font.pixelSize: 11; wrapMode: Text.Wrap }
             Text { Layout.fillWidth: true; text: qsTr("Premium required. Your session is stored in %1 when available.").arg(spotify.credentialStorage); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
+            Text { Layout.fillWidth: true; text: qsTr("Phosrack reconnects automatically when it can restore your saved session."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
             Text { Layout.fillWidth: true; text: qsTr("Your Spotify account must be allowed to use the developer application you configure."); color: "#93ad7b"; font.pixelSize: 11; wrapMode: Text.Wrap }
             RackButton {
                 objectName: "advancedSpotifyButton"

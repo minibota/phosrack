@@ -10,6 +10,7 @@ Window {
     property var spotify
     property string effect: "orbit"
     property bool reducedMotion: false
+    property bool ambient: false
     readonly property bool presentationActive: visible && visibility !== Window.Minimized
     readonly property var currentTrack: spotify ? spotify.track : ({})
     readonly property var nextTrack: spotify && spotify.queueItems.length > 0 ? spotify.queueItems[0] : ({})
@@ -81,7 +82,6 @@ Window {
         }
     }
     Timer { id: queueDelay; interval: 500; onTriggered: fullscreen.refreshQueue() }
-    Timer { interval: 15000; repeat: true; running: fullscreen.presentationActive && !!fullscreen.spotify && fullscreen.spotify.authorized; onTriggered: fullscreen.refreshQueue() }
     Timer {
         id: chromeTimer; interval: 2800
         onTriggered: {
@@ -109,12 +109,6 @@ Window {
             border.color: "#baff74"; border.width: linkControl.activeFocus ? 1 : 0
         }
         HoverHandler { cursorShape: Qt.PointingHandCursor; enabled: linkControl.enabled }
-        Rectangle {
-            visible: linkControl.enabled
-            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 2
-            width: 17; height: 17; radius: 1; color: "#d0070c12"
-            Text { anchors.centerIn: parent; text: "↗"; color: "#baff74"; font.pixelSize: 14 }
-        }
         onClicked: Qt.openUrlExternally(targetUrl)
         onHoveredChanged: if (hovered) fullscreen.showChrome()
         onActiveFocusChanged: if (activeFocus) fullscreen.showChrome()
@@ -130,6 +124,7 @@ Window {
         LiveCanvas {
             anchors.fill: parent
             visible: fullscreen.presentationActive
+            ambient: fullscreen.ambient; animationActive: fullscreen.presentationActive
             analyzer: fullscreen.analyzer; effect: fullscreen.effect; reducedMotion: fullscreen.reducedMotion
         }
         MouseArea {
@@ -142,6 +137,7 @@ Window {
             opacity: fullscreen.chromeVisible ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: fullscreen.reducedMotion ? 0 : 250 } }
             Text { text: "PHOSRACK"; color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 15; font.letterSpacing: 3 }
+            SpotifyAttribution { visible: !!fullscreen.spotify && fullscreen.spotify.authorized; targetUrl: fullscreen.currentSpotifyUrl || "https://open.spotify.com/" }
             Item { Layout.fillWidth: true }
             RackButton {
                 id: exitButton
@@ -164,6 +160,7 @@ Window {
         }
         GridLayout {
             id: songOverlay
+            visible: !!fullscreen.spotify && fullscreen.spotify.authorized
             objectName: "songInfoOverlay"
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             anchors.margins: Math.min(32, fullscreen.width * 0.035)
@@ -177,7 +174,7 @@ Window {
                     Layout.preferredWidth: 72; Layout.preferredHeight: 72
                     color: "#222b36"; border.color: "#66717e"; radius: 2
                     Text { anchors.centerIn: parent; text: "♫"; color: "#baff74"; font.pixelSize: 31; visible: currentArtwork.status !== Image.Ready }
-                    Image { id: currentArtwork; anchors.fill: parent; source: fullscreen.currentTrack.art || ""; asynchronous: true; fillMode: Image.PreserveAspectCrop }
+                    Image { id: currentArtwork; anchors.fill: parent; source: fullscreen.currentTrack.art || ""; cache: false; asynchronous: true; fillMode: Image.PreserveAspectFit }
                     ArtworkLink {
                         objectName: "currentArtworkLink"; anchors.fill: parent
                         targetUrl: fullscreen.currentSpotifyUrl; songTitle: fullscreen.currentTrack.title || ""
@@ -205,7 +202,7 @@ Window {
                     Layout.preferredWidth: 54; Layout.preferredHeight: 54
                     color: "#1b242e"; border.color: "#495563"; radius: 2
                     Text { anchors.centerIn: parent; text: "♫"; color: "#8ca580"; font.pixelSize: 25; visible: nextArtwork.status !== Image.Ready }
-                    Image { id: nextArtwork; anchors.fill: parent; source: fullscreen.nextTrack.art || ""; asynchronous: true; fillMode: Image.PreserveAspectCrop }
+                    Image { id: nextArtwork; anchors.fill: parent; source: fullscreen.nextTrack.art || ""; cache: false; asynchronous: true; fillMode: Image.PreserveAspectFit }
                     ArtworkLink {
                         objectName: "nextArtworkLink"; anchors.fill: parent
                         targetUrl: fullscreen.nextSpotifyUrl; songTitle: fullscreen.nextTrack.title || ""

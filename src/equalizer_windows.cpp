@@ -72,6 +72,28 @@ void Equalizer::selectPreset(const QString &id) {
     }
 }
 void Equalizer::reset(){selectPreset("flat");}
+bool Equalizer::ensureBypassed() {
+    setEnabled(false);
+    if(m_enabled)return false;
+    if(qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")||m_apoDirectory.isEmpty())return true;
+    // A previous crash can leave our driver include active even though this new
+    // process has never enabled EQ. Only inspect/bypass our marked managed file.
+    const auto path=QDir(m_apoDirectory).filePath("phosrack.txt");
+    if(!QFileInfo::exists(path))return true;
+    QFile file(path);
+    if(!file.open(QIODevice::ReadOnly)) {
+        m_error=tr("Cannot bypass the previous Phosrack equalizer. Check Equalizer APO permissions before connecting Spotify.");emit changed();return false;
+    }
+    const auto previous=file.readAll();file.close();
+    if(!previous.startsWith("# Phosrack - managed local Equalizer APO filters")) {
+        m_error=tr("Cannot bypass the previous Phosrack equalizer. Check Equalizer APO permissions before connecting Spotify.");emit changed();return false;
+    }
+    const auto bypass=Phosrack::apoConfiguration(m_gains,m_preamp,false).toUtf8();
+    if(previous!=bypass&&!writeFile(path,bypass)) {
+        m_error=tr("Cannot bypass the previous Phosrack equalizer. Check Equalizer APO permissions before connecting Spotify.");emit changed();return false;
+    }
+    m_error.clear();emit changed();return true;
+}
 void Equalizer::setApoDirectory(const QString &path) {
     const auto trimmed=path.trimmed();
     const auto folder=trimmed.isEmpty()?QString():QDir::cleanPath(trimmed);
@@ -82,6 +104,7 @@ void Equalizer::setApoDirectory(const QString &path) {
     m_status=tr("Equalizer off");m_error.clear();emit changed();
 }
 void Equalizer::setEnabled(bool value) {
+    if(value && !m_permitted) return;
     if(value==m_enabled)return;
     m_error.clear();
     if(!value){stop();if(!m_enabled)m_status=tr("Equalizer off");emit changed();return;}

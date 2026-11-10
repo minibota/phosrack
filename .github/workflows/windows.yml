@@ -12,7 +12,7 @@ on:
       - '**/*.md'
   workflow_dispatch:
 env:
-  PHOSRACK_RELEASE_VERSION: 0.3.2
+  PHOSRACK_RELEASE_VERSION: 0.3.3
 permissions:
   contents: read
 jobs:

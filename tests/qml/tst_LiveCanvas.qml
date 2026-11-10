@@ -17,6 +17,11 @@ TestCase {
         signal frameReady()
     }
     Component { id: component; Rack.LiveCanvas { analyzer: audio } }
+    function init() {
+        audio.bands = [0.2, 0.4, 0.6, 0.3]
+        audio.waveform = [0.1, -0.2, 0.3, -0.1]
+        audio.level = 0.1; audio.running = true
+    }
     function test_largeViewportHasBoundedPhysicalBacking() {
         const view = createTemporaryObject(component, suite, {width: 3840, height: 2160})
         verify(view)
@@ -50,6 +55,45 @@ TestCase {
         const view = createTemporaryObject(component, suite, {width: 450, height: 108, reducedMotion: true})
         verify(view)
         audio.frameReady();wait(80)
+        compare(view.phase, 0)
+    }
+    function test_ambientDoesNotReactToCapturedAudio() {
+        const view = createTemporaryObject(component, suite, {width: 450, height: 108, ambient: true, animationActive: false})
+        verify(view)
+        wait(80)
+        const before = grabImage(view)
+        const phase = view.phase
+        audio.bands = [1, 0, 1, 1]; audio.waveform = [1, -1, 1, -1]
+        audio.level = 1; audio.running = false
+        for (let i = 0; i < 100; ++i) audio.frameReady()
+        view.requestPaint(false)
+        wait(80)
+        compare(view.phase, phase)
+        const after = grabImage(view)
+        verify(before.equals(after), "Ambient rendering must not depend on system audio samples")
+    }
+    function test_ambientRunsWithoutAnAudioSourceAndStopsWhenHidden() {
+        const view = createTemporaryObject(component, suite, {width: 450, height: 108, ambient: true, analyzer: null})
+        verify(view)
+        tryVerify(() => view.phase > 0)
+        view.visible = false
+        const hiddenPhase = view.phase
+        wait(150)
+        compare(view.phase, hiddenPhase)
+        view.visible = true
+        tryVerify(() => view.phase > hiddenPhase)
+        view.animationActive = false
+        const inactivePhase = view.phase
+        wait(150)
+        compare(view.phase, inactivePhase)
+    }
+    function test_ambientHonorsReducedMotion() {
+        const view = createTemporaryObject(component, suite, {width: 450, height: 108, ambient: true, reducedMotion: true})
+        verify(view)
+        wait(150)
+        compare(view.phase, 0)
+        for (let i = 0; i < 100; ++i) audio.frameReady()
+        wait(80)
         compare(view.phase, 0)
     }
 }

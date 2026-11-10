@@ -7,6 +7,8 @@ Item {
     property string effect: "orbit"
     property real phase: 0
     property bool reducedMotion: false
+    property bool ambient: false
+    property bool animationActive: true
     // Bound the CPU-rasterized texture in physical pixels, including HiDPI.
     // The scene graph scales it smoothly; text/controls remain native resolution.
     readonly property real backingDpr: Math.max(1, Screen.devicePixelRatio)
@@ -34,6 +36,7 @@ Item {
         }
         c.strokeStyle = color; c.globalAlpha = opacity; c.lineWidth = lineWidth; c.stroke()
     }
+    onAmbientChanged: requestPaint(false)
     onEffectChanged: requestPaint(false)
     onWidthChanged: requestPaint(false)
     onHeightChanged: requestPaint(false)
@@ -47,15 +50,20 @@ Item {
         onTriggered: {
             if (!visual.visible) return
             const elapsed = visual.lastFrameTime ? Math.min(3, (Date.now() - visual.lastFrameTime) / 33) : 1
-            if (visual.audioFramePending && visual.analyzer && visual.analyzer.level > 0.0005 && !visual.reducedMotion)
+            if (!visual.ambient && visual.audioFramePending && visual.analyzer && visual.analyzer.level > 0.0005 && !visual.reducedMotion)
                 visual.phase += (0.012 + Math.min(0.035, visual.analyzer.level * 0.1)) * elapsed
             visual.audioFramePending = false
             visual.lastFrameTime = Date.now()
             surface.requestPaint()
         }
     }
+    Timer {
+        interval: 50; repeat: true
+        running: visual.visible && visual.ambient && visual.animationActive && !visual.reducedMotion
+        onTriggered: { visual.phase += 0.015; visual.requestPaint(false) }
+    }
     Connections {
-        target: visual.analyzer
+        target: visual.ambient ? null : visual.analyzer
         function onFrameReady() { visual.requestPaint(true) }
     }
     Canvas {
@@ -70,10 +78,13 @@ Item {
             const analyzer = visual.analyzer, effect = visual.effect, phase = visual.phase
             c.globalAlpha = 1; c.shadowBlur = 0
             c.fillStyle = "#070e12"; c.fillRect(0, 0, width, height)
-            if (!analyzer) return
-            const bands = analyzer.bands
-            const wave = analyzer.waveform
-            const energy = Math.min(1, Math.sqrt(analyzer.level) * 1.8)
+            if (!visual.ambient && !analyzer) return
+            // Ambient mode is a clock-driven pattern; never inspect captured audio
+            // or Spotify playback position/tempo to animate it.
+            const bands = visual.ambient ? Array.from({length: 48}, (_, i) => 0.2 + 0.12 * Math.sin(i * 0.22 + phase)) : analyzer.bands
+            const wave = visual.ambient ? Array.from({length: 128}, (_, i) => 0.3 * Math.sin(i * 0.12 + phase)) : analyzer.waveform
+            const energy = visual.ambient ? 0.3 : Math.min(1, Math.sqrt(analyzer.level) * 1.8)
+            const glowing = visual.ambient || analyzer.running
             if (effect === "spectrum") {
                 const step = (width - 24) / Math.max(1, bands.length)
                 const g = c.createLinearGradient(0, height, 0, 0)
@@ -84,7 +95,7 @@ Item {
                     const h = bands[i] * (height - 32)
                     c.rect(12 + i * step, height - 16 - h, Math.max(1, step - 2), h)
                 }
-                if (analyzer.running) {
+                if (glowing) {
                     c.strokeStyle = "#72ec79"
                     c.globalAlpha = 0.12; c.lineWidth = 7; c.stroke()
                     c.globalAlpha = 0.22; c.lineWidth = 3; c.stroke()
@@ -103,7 +114,7 @@ Item {
                         const y = height / 2 + wave[i] * height * (0.4 - layer * 0.05)
                         if (i === 0) c.moveTo(x, y); else c.lineTo(x, y)
                     }
-                    visual.glowStroke(c, layer === 0 ? 2 : 4, layer === 0 ? 1 : 0.3, analyzer.running)
+                    visual.glowStroke(c, layer === 0 ? 2 : 4, layer === 0 ? 1 : 0.3, glowing)
                 }
                 c.globalAlpha = 1
             } else {
@@ -112,7 +123,7 @@ Item {
                 for (let layer = 0; layer < 5; layer++) {
                     c.lineWidth = layer === 0 ? 2.4 : 1.2
                     c.strokeStyle = ["#b5f083", "#75eadb", "#72aeea", "#b797e9", "#eb9dc6"][layer]
-                    c.globalAlpha = analyzer.running ? 0.35 + energy * 0.55 : 0.17
+                    c.globalAlpha = glowing ? 0.35 + energy * 0.55 : 0.17
                     c.beginPath()
                     for (let i = 0; i <= 160; i++) {
                         const a = i / 160 * Math.PI * 2
@@ -124,7 +135,7 @@ Item {
                         const y = cy + Math.sin(a) * r * 0.77
                         if (i === 0) c.moveTo(x, y); else c.lineTo(x, y)
                     }
-                    c.closePath(); visual.glowStroke(c, layer === 0 ? 2.4 : 1.2, analyzer.running ? 0.35 + energy * 0.55 : 0.17, analyzer.running)
+                    c.closePath(); visual.glowStroke(c, layer === 0 ? 2.4 : 1.2, glowing ? 0.35 + energy * 0.55 : 0.17, glowing)
                 }
                 c.globalAlpha = 1
             }

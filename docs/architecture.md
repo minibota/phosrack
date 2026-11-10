@@ -1,6 +1,6 @@
 # Architecture
 
-Phosrack 0.3.2 is a standalone QML + C++ Qt application. The executable registers
+Phosrack 0.3.3 is a standalone QML + C++ Qt application. The executable registers
 SpotifyClient, AudioAnalyzer, Equalizer and Preferences as the Phosrack QML module.
 App.qml, rack components, catalogs, icon and the SDK bridge page are embedded Qt
 resources. The installed application needs no source checkout or machine-wide QML
@@ -19,7 +19,9 @@ there is no outer scrolling rack.
 
 SettingsDialog.qml provides personal Spotify application setup, Connect Spotify,
 playback mode, DRM status/module selection, output override, motion preference and
-external Spotify device transfer. English, Spanish and French use QLocale's first
+external Spotify device transfer. A separate Local audio tools mode requires an
+explicit non-Spotify-audio acknowledgement and suspends the Spotify session.
+English, Spanish and French use QLocale's first
 system UI language, English qsTr()/tr() source strings and embedded JSON catalogs via
 QTranslator. Unsupported or missing system language preferences fall back to English.
 Stable preference keys and effect identifiers do not depend on translated labels.
@@ -35,9 +37,15 @@ remain separate. No Client Secret or developer-account credentials are embedded.
 Refresh tokens use KWallet on Linux or Windows Credential Manager when available;
 access tokens remain in memory. Session generations discard replies after cancellation,
 while independent search/library generations reject stale collection responses.
-Polling is slower when hidden; rate-limit responses enforce backoff. Normalized maps
+Integrated SDK state avoids redundant REST polling; remote state is polled less
+frequently, especially when hidden. Queue refreshes happen on navigation, track changes and explicit user actions,
+with a shared backend freshness guard instead of periodic polling. A 429 is handled before discarding obsolete collection results,
+and its deadline is persisted and never shortened by overlapping responses. The
+UI receives an updated remaining wait. Developer-account quota errors are identified
+separately from other rate-limit responses. Normalized maps
 let QML render tracks, albums and playlists consistently. Spotify's API constrains
-collection availability, queue editing and playback capabilities.
+collection availability, queue editing and playback capabilities. The saved wait
+survives session clearing; no Client ID rotation or automatic bypass is attempted.
 
 Integrated mode requests `streaming`, `user-read-private` and `user-read-email` in
 addition to the existing playback/library scopes. A legacy grant is detected once
@@ -45,6 +53,16 @@ per configured Client ID and prompts explicit reauthorization. It does not repea
 open the browser or silently discard protected stored credentials. Refreshing a token
 updates the playback engine through native C++ connections; disconnect/client changes
 clear the engine token and device state.
+
+On startup the rack first gates connection on acceptance of the integration terms
+and acknowledgement of the privacy notice. `restoreSession()` attempts stored
+credentials without opening the browser. Missing/expired credentials or additional
+consent produce an in-app authorization notice; user-initiated connection opens the
+browser. The callback returns a localized, self-contained HTML page for receipt,
+denial or invalid/expired authorization. It does not reflect codes or tokens.
+Explicit Disconnect records a persistent sign-out choice before requesting removal
+of the saved sign-in. Failed deletion is reported and cannot cause automatic reuse.
+Local audio tools only suspend the current session.
 
 ## Integrated playback
 
@@ -60,9 +78,9 @@ HTML, persistent browser storage or logs. The SDK is loaded from Spotify at runt
 over another player automatically. Explicit track/context playback targets the local
 device ID, and pressing Play can transfer the current session. Transport, shuffle,
 repeat and queue requests target the local device; requests wait for readiness instead
-of accidentally controlling another player. Local volume uses the SDK. Web API polling
-remains authoritative for device takeover while SDK state supplies local progress and
-metadata. An empty session can start from Search or Library without an external player.
+of accidentally controlling another player. Local volume uses the SDK. SDK state supplies local progress and metadata;
+remote state is refreshed only when needed for an external session or an explicit
+transfer. A ready local player does not justify periodic duplicate REST state requests. An empty session can start from Search or Library without an external player.
 
 `Control another Spotify player` disables the integrated engine and keeps the existing
 Web API controller for an official app, web player or Spotify Connect device. The
@@ -73,9 +91,20 @@ PlaybackRuntime configures an existing compatible Widevine module before WebEngi
 initialization. It detects common Chrome locations or uses an explicitly selected
 module path. Changing that setting requires restart. Widevine is neither bundled nor
 downloaded, and runtime compatibility depends on the platform's WebEngine/codecs/CDM.
-See the [versioned validation record](validation-0.3.2.md) for actual platform results.
+See the [versioned validation record](validation-0.3.3.md) for actual platform results.
 
 ## Local audio and equalization
+
+Spotify mode sets the analyzer inactive and makes the EQ unavailable. `LiveCanvas`
+renders ambient phosphor effects without using monitored samples. Fullscreen can
+show actual Spotify metadata; its animation is not synchronized to sound.
+
+Local audio tools require explicit user acknowledgement and suspend Spotify before
+enabling output capture or EQ. The fullscreen Spotify overlay is suppressed in this
+mode. Returning to Spotify disables the EQ first; a failed Windows APO bypass blocks
+connection. The monitor also requires an unauthorized, non-busy Spotify session.
+This separation cannot identify Spotify sound from unrelated apps on a mixed output;
+the user must stop such playback. See [policy scope](spotify-policy.md).
 
 The Linux AudioAnalyzer resolves PipeWire's `default.audio.sink` metadata every two
 seconds while active. An empty source preference means automatic routing. Explicit
@@ -89,8 +118,8 @@ On Linux, phosrack-eq-worker owns a virtual PipeWire input and physical output s
 and performs the ten-band biquad DSP locally. The parent controls gains over private
 stdin; it does not modify a foreign node, restart streams for each change or require
 a manager permission. Output is pinned before exposing the virtual sink. Users route
-the sound-producing application to Phosrack EQ, including Phosrack's own stream when
-using integrated playback.
+the non-Spotify sound-producing application to Phosrack EQ. This tool is not
+available to process integrated Spotify playback.
 
 Windows selects audioanalyzer_windows.cpp for WASAPI loopback and
 equalizer_windows.cpp for optional Equalizer APO configuration. Shared monitorformat.h
@@ -100,7 +129,7 @@ or KWallet library is required by the Windows executable.
 ## Packaging
 
 CMake installs the executable, desktop entry, AppStream metadata, icon, license and
-documentation. RPM/DEB use their distribution's Qt WebEngine/WebChannel and other
+documentation, including the privacy notice and integration terms. RPM/DEB use their distribution's Qt WebEngine/WebChannel and other
 runtime libraries. ABI-specific native packages are compiled for their target system.
 Flatpak compiles the same application with the KDE 6.10 SDK and Qt WebEngine BaseApp.
 Windows deploys Qt/compiler DLLs, WebEngineProcess, resource packs, locales and QML

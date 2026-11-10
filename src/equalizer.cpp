@@ -125,7 +125,9 @@ void Equalizer::selectPreset(const QString &id){
     }
 }
 void Equalizer::reset(){selectPreset("flat");}
+bool Equalizer::ensureBypassed(){setEnabled(false);return !enabled();}
 void Equalizer::setEnabled(bool enabled){
+    if(enabled && !m_permitted) return;
     if(enabled==m_enabled)return;
     m_error.clear();
     if(!enabled){stop();m_status=tr("Equalizer off");emit changed();return;}

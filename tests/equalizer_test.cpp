@@ -7,6 +7,15 @@
 class EqualizerTest : public QObject {
     Q_OBJECT
 private slots:
+    void spotifyModeBypassesAndRejectsEnable() {
+        qputenv("PHOSRACK_TEST_MODE","1");
+        Equalizer eq;eq.setEnabled(true);QVERIFY(eq.enabled());
+        eq.setPermitted(false);QVERIFY(!eq.enabled());
+        eq.setEnabled(true);QVERIFY(!eq.enabled());
+        QVERIFY(eq.ensureBypassed());
+        eq.setPermitted(true);eq.setEnabled(true);QVERIFY(eq.enabled());
+    }
+
     void presetsAndCustomState() {
         Equalizer eq;
         QVERIFY(!eq.enabled());QVERIFY(!eq.running());QCOMPARE(eq.gains().size(),10);
