@@ -196,11 +196,11 @@ compiler are required. Widevine is a separate runtime dependency for integrated 
 
 Fedora 45 build dependencies:
 
-    sudo dnf install gcc-c++ cmake ninja-build pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwebengine-devel qt6-qtwebchannel-devel kf6-kwallet-devel extra-cmake-modules pipewire-devel pipewire-utils
+    sudo dnf install gcc-c++ cmake ninja-build pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtsvg qt6-qtwebengine-devel qt6-qtwebchannel-devel kf6-kwallet-devel extra-cmake-modules pipewire-devel pipewire-utils
 
 Debian 13 build dependencies:
 
-    sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev qt6-webengine-dev qt6-webchannel-dev libkf6wallet-dev extra-cmake-modules libpipewire-0.3-dev qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qttest pipewire-bin
+    sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev qt6-svg-plugins qt6-webengine-dev qt6-webchannel-dev libkf6wallet-dev extra-cmake-modules libpipewire-0.3-dev qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qttest pipewire-bin
 
 Then build and run:
 

@@ -208,7 +208,7 @@ set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-templates, qml6-module-qtquick-layouts, qml6-module-qtquick-window, qml6-module-qtqml, qml6-module-qtqml-models, qml6-module-qtqml-workerscript, libqt6svg6, libqt6webenginecore6-bin, qt6-wayland, pipewire-bin, libpipewire-0.3-modules")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-templates, qml6-module-qtquick-layouts, qml6-module-qtquick-window, qml6-module-qtqml, qml6-module-qtqml-models, qml6-module-qtqml-workerscript, libqt6svg6, qt6-svg-plugins, libqt6webenginecore6-bin, qt6-wayland, pipewire-bin, libpipewire-0.3-modules")
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "phosrack-${PROJECT_VERSION}-source")
 set(CPACK_SOURCE_IGNORE_FILES "/[.]git/;/releases/;/build[^/]*/;[.]user$;[.]swp$;[.]plasmoid$;[.]zip$;[.]rpm$;[.]deb$;[.]flatpak$;CMakeUserPresets.json")
