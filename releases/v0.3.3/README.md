@@ -12,9 +12,7 @@ suspends the Spotify session while keeping the saved sign-in. See the
 
 ## Downloads
 
-The following paths are reserved for the [v0.3.3 release](https://github.com/minibota/phosrack/releases/tag/v0.3.3).
-Publication and artifact verification are pending; a link here is not evidence that
-an installer has been built or tested.
+Download installers from the [v0.3.3 release](https://github.com/minibota/phosrack/releases/tag/v0.3.3).
 
 | Platform | Package |
 | --- | --- |
@@ -23,15 +21,24 @@ an installer has been built or tested.
 | Linux x86_64 | [Flatpak](https://github.com/minibota/phosrack/releases/download/v0.3.3/phosrack-0.3.3-x86_64.flatpak) |
 | Windows 11 x64 | [Installer](https://github.com/minibota/phosrack/releases/download/v0.3.3/phosrack-0.3.3-windows-x64.exe) · [Portable ZIP](https://github.com/minibota/phosrack/releases/download/v0.3.3/phosrack-0.3.3-windows-x64.zip) |
 
-Checksums and component notices will be added after the final packages are built.
-Large WebEngine bundles are published as release assets, not Git blobs.
+Verify downloads with [SHA256SUMS.txt](SHA256SUMS.txt). See [THIRD_PARTY.md](THIRD_PARTY.md)
+for component sources and notices. RPM and DEB files are also in this directory;
+large WebEngine bundles are published as release assets, not Git blobs.
 
 ## Build provenance and validation
 
-Pending final source commit, workflow runs, package hashes and installed-runtime
-checks. The [v0.3.3 validation record](../../docs/validation-0.3.3.md) distinguishes
-planned checks from completed results. Previous release results are not proof that
-these new packages pass.
+RPM, Windows and Flatpak use application source
+[`c6c702091f8b3ab3c7fdd7a3aadf2d48732be004`](https://github.com/minibota/phosrack/tree/c6c702091f8b3ab3c7fdd7a3aadf2d48732be004).
+The DEB uses [`80091d588cfd10cbbda9874bfadb447195adf36a`](https://github.com/minibota/phosrack/tree/80091d588cfd10cbbda9874bfadb447195adf36a),
+which adds the required Debian SVG image plugin; application code is unchanged.
+
+- [RPM CI](https://github.com/minibota/phosrack/actions/runs/42842329313): 18/18 tests; payload digests and extracted UI smoke checks passed on Fedora.
+- [DEB CI](https://github.com/minibota/phosrack/actions/runs/42843464979): 18/18 tests; apt installation and UI checks passed in a clean Debian runtime container.
+- [Windows CI](https://github.com/minibota/phosrack/actions/runs/42842329398): 18/18 tests, portable ZIP verification, installed NSIS UI and Start-menu shortcut checks, and uninstall passed.
+- Flatpak: built locally from the exact application source, then installed and checked in an isolated Flatpak root with KDE / Qt WebEngine BaseApp 6.10. App commit: `32067e751b6c7b818d7e87d4e61f08b2cf6940248be1fb7ef217477004672072`.
+
+See the [v0.3.3 validation record](../../docs/validation-0.3.3.md) for scope and limitations.
+Live Spotify sign-in and listening were not repeated during the existing cooldown.
 
 Spotify Premium, a personal developer Client ID and compatible Widevine are needed
 for integrated playback. Widevine is not included. External-player mode remains

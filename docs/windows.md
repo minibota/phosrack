@@ -22,8 +22,8 @@ Linux feasibility experiment does not establish Windows playback support on a gi
 
 ## Verified media capabilities
 
-The previous v0.3.2 Windows CI runtime probe for application source
-`4f048bcf4218d863f002bfd45d6eeb7c30b495f4` used Qt 6.8.3. It reported a secure
+The v0.3.3 Windows CI runtime probe for application source
+`c6c702091f8b3ab3c7fdd7a3aadf2d48732be004` used Qt 6.8.3. It reported a secure
 loopback context, Opus/Vorbis decoding and successful Widevine MediaKeys creation
 for those formats. **AAC decoding is unavailable in this Qt build**, and AAC
 MediaKeys initialization returned `NotSupportedError`.
