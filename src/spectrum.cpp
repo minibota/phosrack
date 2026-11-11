@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <numeric>
 #include <vector>
 namespace Phosrack {
 namespace {
@@ -65,7 +64,7 @@ SpectrumFrame analyze(const std::array<float,FftSize> &samples, int sampleRate) 
     return out;
 }
 
-PitchFrame analyzePitch(const PitchSamples &samples, const PitchClasses &previous) {
+PitchClasses analyzePitch(const PitchSamples &samples, const PitchClasses &previous) {
     constexpr double binHz = 48000.0 / PitchFftSize;
     constexpr int firstBin = int(75 / binHz);
     constexpr int lastBin = int(1800 / binHz);
@@ -74,7 +73,7 @@ PitchFrame analyzePitch(const PitchSamples &samples, const PitchClasses &previou
     for (int i = firstBin - 1; i <= lastBin + 1; ++i)
         magnitudes[i] = std::abs(fft[i]);
     const double peak = *std::max_element(magnitudes.begin(), magnitudes.end());
-    PitchFrame result;
+    PitchClasses result{};
     if (peak < 0.8) return result;
 
     struct Peak { double frequency; double magnitude; };
@@ -107,34 +106,9 @@ PitchFrame analyzePitch(const PitchSamples &samples, const PitchClasses &previou
     const float blend = *std::max_element(previous.begin(), previous.end()) > 0 ? 0.50f : 0.f;
     for (int note = 0; note < PitchClassCount; ++note) {
         const float current = float(strengths[note] / framePeak);
-        result.notes[note] = (1 - blend) * current + blend * previous[note];
+        result[note] = (1 - blend) * current + blend * previous[note];
     }
 
-    // A lone pitch, power chord, or diffuse spectrum should not get a triad label.
-    const double strongest = *std::max_element(result.notes.begin(), result.notes.end());
-    const double total = std::accumulate(result.notes.begin(), result.notes.end(), 0.0);
-    double best = 0, runnerUp = 0;
-    for (int root = 0; root < PitchClassCount; ++root) {
-        for (int third : {3, 4}) {
-            const double tonic = result.notes[root];
-            const double middle = result.notes[(root + third) % PitchClassCount];
-            const double fifth = result.notes[(root + 7) % PitchClassCount];
-            const double weakest = std::min({tonic, middle, fifth});
-            if (weakest < strongest * 0.20) continue;
-            const double coverage = (tonic + middle + fifth) / total;
-            if (coverage < 0.68) continue;
-            const double score = coverage + 0.2 * weakest / strongest;
-            if (score > best) {
-                runnerUp = best;
-                best = score;
-                result.chordRoot = root;
-                result.minor = third == 3;
-            } else {
-                runnerUp = std::max(runnerUp, score);
-            }
-        }
-    }
-    if (best - runnerUp < 0.09) result.chordRoot = -1;
     return result;
 }
 }

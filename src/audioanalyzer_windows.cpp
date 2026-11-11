@@ -211,8 +211,8 @@ void AudioAnalyzer::startCapture() {
             if(generation!=m_windows->generation||!m_active)return;
             setStatus(tr("Listening to system output"));m_frames.start();emit changed();
         },Qt::QueuedConnection);
-        Phosrack::MonitorResampler resampler(format.sampleRate);
-        std::vector<float> mono;
+        Phosrack::MonitorResampler resampler(format.sampleRate), leftResampler(format.sampleRate), rightResampler(format.sampleRate);
+        std::vector<float> mono, left, right;
         bool failed=false;
         while(!m_windows->stop) {
             UINT frames=0;
@@ -220,18 +220,21 @@ void AudioAnalyzer::startCapture() {
             while(frames&&!m_windows->stop) {
                 BYTE *data=nullptr;UINT packetFrames=0;DWORD flags=0;
                 if(FAILED(capture->GetBuffer(&data,&packetFrames,&flags,nullptr,nullptr))){failed=true;break;}
-                mono.clear();
+                mono.clear();left.clear();right.clear();
                 for(UINT frame=0;frame<packetFrames;++frame) {
                     const bool silent=(flags&AUDCLNT_BUFFERFLAGS_SILENT)||!data;
-                    const float sample=silent?0.f:Phosrack::monitorMonoFrame(data+std::size_t(frame)*format.frameBytes,
-                        format.frameBytes,format);
-                    resampler.append(sample,mono);
+                    const auto *source=silent?nullptr:data+std::size_t(frame)*format.frameBytes;
+                    const float l=source?Phosrack::monitorChannelSample(source,format.encoding):0.f;
+                    const float r=source&&format.channels>1
+                        ?Phosrack::monitorChannelSample(source+format.sampleBytes(),format.encoding):l;
+                    resampler.append(Phosrack::monitorMonoFrame(source,format.frameBytes,format),mono);
+                    leftResampler.append(l,left);rightResampler.append(r,right);
                 }
                 capture->ReleaseBuffer(packetFrames);
                 {
                     std::lock_guard<std::mutex> lock(m_windows->mutex);
-                    for(float sample:mono)
-                        m_windows->history.append(sample);
+                    for(std::size_t i=0;i<mono.size();++i)
+                        m_windows->history.append(mono[i],left[i],right[i]);
                 }
                 if(FAILED(capture->GetNextPacketSize(&frames))){failed=true;break;}
             }
@@ -249,10 +252,12 @@ void AudioAnalyzer::stopCapture() {
         std::lock_guard<std::mutex> lock(m_windows->mutex);
         m_windows->history={};
     }
-    m_level=0;m_bands.fill(0.);m_wave.fill(0.);resetPitch();emit changed();emit frameReady();
+    m_level=0;m_bands.fill(0.);m_wave.fill(0.);resetPitch();resetMeter();emit changed();emit frameReady();
 }
-bool AudioAnalyzer::readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch) {
+bool AudioAnalyzer::readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch,
+                                   Phosrack::StereoMeterFrame &meter) {
     std::lock_guard<std::mutex> lock(m_windows->mutex);
+    meter=m_windows->history.takeMeterFrame();
     if (!m_windows->history.takeFresh()) return false;
     m_windows->history.copyRecent(samples);
     if (pitch) m_windows->history.copyRecent(*pitch);

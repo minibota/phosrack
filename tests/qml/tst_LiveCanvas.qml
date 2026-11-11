@@ -15,8 +15,8 @@ TestCase {
         property real level: 0.1
         property bool running: true
         property var pitchClasses: []
-        property int chordRoot: -1
-        property bool minorChord: false
+        property var meterLevels: [0, 0]
+        property var meterPeaks: [0, 0]
         signal frameReady()
     }
     Component { id: component; Rack.LiveCanvas { analyzer: audio } }
@@ -24,7 +24,7 @@ TestCase {
         audio.bands = [0.2, 0.4, 0.6, 0.3]
         audio.waveform = [0.1, -0.2, 0.3, -0.1]
         audio.level = 0.1; audio.running = true
-        audio.pitchClasses = []; audio.chordRoot = -1; audio.minorChord = false
+        audio.pitchClasses = []; audio.meterLevels = [0, 0]; audio.meterPeaks = [0, 0]
     }
     function test_largeViewportHasBoundedPhysicalBacking() {
         const view = createTemporaryObject(component, suite, {width: 3840, height: 2160})
@@ -61,26 +61,25 @@ TestCase {
         audio.frameReady();wait(80)
         compare(view.phase, 0)
     }
-    function test_gridReactsToSpectrumFrames() {
-        audio.bands = Array(48).fill(0)
-        const view = createTemporaryObject(component, suite, {width: 450, height: 142, effect: "grid"})
+    function test_meterReactsToIndependentChannels() {
+        const view = createTemporaryObject(component, suite, {width: 450, height: 142, effect: "meter"})
         wait(100)
-        const before = grabImage(view)
-        audio.bands = Array(48).fill(0)
-        audio.bands[47] = 1
+        const quiet = grabImage(view)
+        audio.meterLevels = [0.75, 0]
+        audio.meterPeaks = [0.9, 0]
         audio.frameReady()
-        tryVerify(() => !grabImage(view).equals(before))
+        tryVerify(() => !grabImage(view).equals(quiet))
+        const left = grabImage(view)
+        audio.meterLevels = [0, 0.75]
+        audio.meterPeaks = [0, 0.9]
+        audio.frameReady()
+        tryVerify(() => !grabImage(view).equals(left))
     }
-    function test_harmonicDisplayUsesEstimateWhenAvailable() {
+    function test_notesUseFullWidthWithoutChordBadge() {
         const view = createTemporaryObject(component, suite, {width: 450, height: 142, effect: "notes"})
-        tryVerify(() => !!findChild(view, "estimatedChord"))
-        const chord = findChild(view, "estimatedChord")
-        compare(chord.text, "—")
-        audio.pitchClasses = [1, 0, 0, 0, 0.8, 0, 0, 0.7, 0, 0, 0, 0]
-        audio.chordRoot = 0
-        compare(chord.text, "C major")
-        audio.chordRoot = -1
-        compare(chord.text, "—")
+        tryVerify(() => !!findChild(view, "noteBar11"))
+        verify(findChild(view, "noteBar0").mapToItem(view, 0, 0).x < 18)
+        verify(!findChild(view, "estimatedChord"))
     }
     function test_ambientDoesNotReactToCapturedAudio() {
         const view = createTemporaryObject(component, suite, {width: 450, height: 108, ambient: true, animationActive: false})

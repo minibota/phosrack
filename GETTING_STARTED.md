@@ -10,10 +10,10 @@ Read the [privacy notice](PRIVACY.md) and [Spotify integration terms](TERMS.md)
 before connecting Spotify.
 
 Download an installer from the
-[v0.3.4 release](https://github.com/minibota/phosrack/releases/tag/v0.3.4). The
-[versioned package index](releases/v0.3.4/) contains download links and checksums.
+[v0.3.5 release](https://github.com/minibota/phosrack/releases/tag/v0.3.5). The
+[versioned package index](releases/v0.3.5/) contains download links and checksums.
 Choose the package for your operating system and CPU architecture. See the
-[0.3.4 validation notes](docs/validation-0.3.4.md) for completed checks and remaining
+[0.3.5 validation notes](docs/validation-0.3.5.md) for completed checks and remaining
 platform limitations.
 
 - Fedora 45 x86_64: install the RPM after its runtime dependencies.
@@ -26,15 +26,15 @@ Local development RPMs are unsigned. On Fedora 45, install the signed runtime
 dependencies, then use a per-command digest check without changing global policy:
 
     sudo dnf install qt6-qtdeclarative qt6-qtsvg qt6-qtwayland qt6-qtwebengine qt6-qtwebchannel kf6-kwallet pipewire pipewire-libs pipewire-utils
-    sudo rpm --define '_pkgverify_level digest' -Uvh ./phosrack-0.3.4-1.fc45.x86_64.rpm
+    sudo rpm --define '_pkgverify_level digest' -Uvh ./phosrack-0.3.5-1.fc45.x86_64.rpm
 
 On Debian 13:
 
-    sudo apt install ./phosrack_0.3.4_amd64.deb
+    sudo apt install ./phosrack_0.3.5_amd64.deb
 
 For Flatpak (including updates to an existing user installation):
 
-    flatpak install --user --reinstall ./phosrack-0.3.4-x86_64.flatpak
+    flatpak install --user --reinstall ./phosrack-0.3.5-x86_64.flatpak
 
 See [docs/packaging.md](docs/packaging.md) for build instructions and dependencies.
 Installing Phosrack does not install Widevine or create a Spotify developer application.
@@ -42,7 +42,7 @@ Installing Phosrack does not install Widevine or create a Spotify developer appl
 ## Connect Spotify
 
 You need **Spotify Premium** and your own Spotify developer application's public
-**Client ID**. This is a one-time setup; Phosrack remembers your ID. v0.3.4 has no
+**Client ID**. This is a one-time setup; Phosrack remembers your ID. v0.3.5 has no
 shared default ID.
 
 1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
@@ -119,13 +119,24 @@ the same developer account can consume the latter too. Phosrack reduces backgrou
 requests, but cannot guarantee that Spotify will never apply a limit. See the
 [technical policy review](docs/spotify-policy.md).
 
+## Liked songs and playback recovery
+
+Use the heart beside the playback controls to add or remove the displayed song
+from Liked Songs. If you connected an earlier version, disconnect and reconnect
+Spotify once to grant library write access.
+
+Phosrack shows the active song or the last song it saw, including its position.
+Press Play to resume. Queue shows the latest entries Spotify supplies. If Spotify
+closed the previous playback session, its exact manual queue may be unavailable.
+
 ## Local audio tools and equalizer
 
 The equalizer and visualizer can run alongside Spotify playback. The visualizer
 reacts to the full mix on the selected local output.
 
-Choose a preset or edit the ten bands and preamp. Boosting bands can distort loud
-audio; reduce the preamp to leave headroom.
+Choose a preset or edit the ten bands. The preamp starts at 0 dB each time you
+turn on the equalizer, and changing presets keeps the current preamp level.
+Reduce the preamp when boosting bands to leave headroom.
 
 On Linux, enable EQ and select **Phosrack EQ** as the output for your
 audio app in the system sound settings. Phosrack creates a temporary processing
@@ -140,8 +151,8 @@ playback device separately. Phosrack disables its filters when you turn off the 
 
 The fullscreen view can show the current Spotify song and the next track when
 one is queued. The visualizer reacts to the selected computer output. Choose the
-8 × 6 phosphor grid or the notes and chords display in the visualizer panel.
-The chord label is an estimate and stays blank when the signal is ambiguous.
+stereo meter or the Notes display in the visualizer panel. The stereo meter
+shows each channel independently and holds the peak briefly.
 The visualizer cannot hear sound from remote playback devices.
 
 Output selection and reduced motion are in Settings. Hiding or folding the local

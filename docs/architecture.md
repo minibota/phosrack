@@ -1,6 +1,6 @@
 # Architecture
 
-Phosrack 0.3.4 is a standalone QML + C++ Qt application. The executable registers
+Phosrack 0.3.5 is a standalone QML + C++ Qt application. The executable registers
 SpotifyClient, AudioAnalyzer, Equalizer and Preferences as the Phosrack QML module.
 App.qml, rack components, catalogs, icon and the SDK bridge page are embedded Qt
 resources. The installed application needs no source checkout or machine-wide QML
@@ -89,7 +89,7 @@ PlaybackRuntime configures an existing compatible Widevine module before WebEngi
 initialization. It detects common Chrome locations or uses an explicitly selected
 module path. Changing that setting requires restart. Widevine is neither bundled nor
 downloaded, and runtime compatibility depends on the platform's WebEngine/codecs/CDM.
-See the [versioned validation record](validation-0.3.4.md) for actual platform results.
+See the [versioned validation record](validation-0.3.5.md) for actual platform results.
 
 ## Local audio and equalization
 
@@ -103,9 +103,9 @@ overrides use stable node names; each capture process is pinned to the current
 numeric output serial. Only Audio/Sink nodes are offered for capture. Folding the
 visualizer or hiding/minimizing its last visible window stops capture. Raw samples
 remain in a bounded memory buffer; a Hann-window FFT feeds 48 bands, waveform and
-reactive ribbons and the 8 × 6 grid. Notes mode alone runs an additional 8,192-sample
-FFT for pitch classes and probable major or minor triads. It smooths pitch estimates
-and requires consecutive chord matches before displaying a label. Native route
+reactive ribbons. The stereo meter measures RMS and peak before the mono mixdown,
+with independent decay and peak hold for both channels. Notes mode alone runs an
+additional 8,192-sample FFT and smooths its twelve pitch classes. Native route
 discovery and capture use fixed commands without a shell.
 
 On Linux, phosrack-eq-worker owns a virtual PipeWire input and physical output stream

@@ -133,7 +133,7 @@ AudioAnalyzer::AudioAnalyzer(QObject *parent):QObject(parent),m_status(tr("Visua
             setStatus(tr("Audio capture unavailable. Check PipeWire and pw-cat."));}
     });
     connect(&m_capture,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,[this](int,QProcess::ExitStatus){
-        m_frames.stop();m_level=0;m_history={};m_bands.fill(0.);m_wave.fill(0.);resetPitch();emit frameReady();
+        m_frames.stop();m_level=0;m_history={};m_bands.fill(0.);m_wave.fill(0.);resetPitch();resetMeter();emit frameReady();
         if(m_requested){m_requested=false;setStatus(tr("Audio output disconnected"));}
         else emit changed();
     });
@@ -228,7 +228,7 @@ void AudioAnalyzer::stopCapture() {
     if(m_capture.state()!=QProcess::NotRunning){
         m_capture.terminate();if(!m_capture.waitForFinished(400)){m_capture.kill();m_capture.waitForFinished(400);}
     }
-    m_pending.clear();m_history={};m_bands.fill(0.);m_wave.fill(0.);m_level=0;resetPitch();
+    m_pending.clear();m_history={};m_bands.fill(0.);m_wave.fill(0.);m_level=0;resetPitch();resetMeter();
     emit changed();emit frameReady();
 }
 
@@ -239,13 +239,16 @@ void AudioAnalyzer::consume() {
     const int begin=std::max(0,complete-Phosrack::PitchFftSize*8);
     for(int i=begin;i<complete;i+=8){
         float l=0,r=0;std::memcpy(&l,m_pending.constData()+i,4);std::memcpy(&r,m_pending.constData()+i+4,4);
-        float x=(l+r)*.5f;if(!std::isfinite(x))x=0;
-        m_history.append(std::clamp(x,-1.f,1.f));
+        l=std::isfinite(l)?std::clamp(l,-1.f,1.f):0.f;
+        r=std::isfinite(r)?std::clamp(r,-1.f,1.f):0.f;
+        m_history.append((l+r)*.5f,l,r);
     }
     m_pending.remove(0,complete);
 }
 
-bool AudioAnalyzer::readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch) {
+bool AudioAnalyzer::readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch,
+                                   Phosrack::StereoMeterFrame &meter) {
+    meter = m_history.takeMeterFrame();
     if (!m_history.takeFresh()) return false;
     m_history.copyRecent(samples);
     if (pitch) m_history.copyRecent(*pitch);

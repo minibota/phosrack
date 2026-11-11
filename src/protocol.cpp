@@ -52,7 +52,8 @@ QVariantMap playbackState(const QJsonObject &o) {
     const bool control=!device.isEmpty() && !device.value("is_restricted").toBool();
     const bool playing=o.value("is_playing").toBool();
     const int duration=item.value("duration_ms").toInt();
-    return {{"title",item.value("name").toString()}, {"artist",artists.join(", ")},
+    return {{"title",item.value("name").toString()}, {"artist",artists.join(", ")}, {"uri",item.value("uri").toString()},
+        {"contextUri",o.value("context").toObject().value("uri").toString()},
         {"album",album.value("name").toString()}, {"art",images.isEmpty()?QString():images.first().toObject().value("url").toString()},
         {"url",item.value("external_urls").toObject().value("spotify").toString()},
         {"duration",duration}, {"position",std::clamp(o.value("progress_ms").toInt(),0,std::max(0,duration))},

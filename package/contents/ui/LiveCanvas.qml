@@ -36,30 +36,35 @@ Item {
         }
         c.strokeStyle = color; c.globalAlpha = opacity; c.lineWidth = lineWidth; c.stroke()
     }
-    function paintGrid(c, width, height, bands) {
-        const step = Math.min(width * 0.92 / 8, height * 0.71 / 6)
-        const gap = Math.min(7, step * 0.22)
-        const cellSize = step - gap
-        const left = (width - 8 * step + gap) / 2
-        const top = (height - 6 * step + gap) / 2 + Math.min(height * 0.05, 9)
-        const colors = ["#a7f0a8", "#a4ee87", "#c0f986", "#d8f396", "#b2ed90", "#8fe3ab"]
-        for (let row = 0; row < 6; ++row) {
-            for (let column = 0; column < 8; ++column) {
-                const level = Math.max(0, Math.min(1, bands[(5 - row) * 8 + column] || 0))
-                const x = left + column * step, y = top + row * step
-                c.fillStyle = "#11261e"; c.globalAlpha = 1
-                c.fillRect(x, y, cellSize, cellSize)
-                c.fillStyle = colors[row]
-                const halo = gap * 0.42
-                c.globalAlpha = level * 0.23
-                c.fillRect(x - halo, y - halo, cellSize + 2 * halo, cellSize + 2 * halo)
-                c.globalAlpha = Math.pow(level, 1.35) * 0.93
-                c.fillRect(x, y, cellSize, cellSize)
-                c.globalAlpha = level * 0.43
-                c.fillRect(x + 1, y + 1, Math.max(0, cellSize - 2), Math.min(cellSize, 2))
+    function paintMeter(c, width, height, levels, peaks) {
+        const count = 28
+        const meterWidth = Math.min(width * 0.85, height * 5.2)
+        const step = meterWidth / count
+        const gap = Math.max(1, step * 0.20)
+        const rowHeight = Math.max(1, Math.min(height * 0.19, step * 1.45))
+        const left = (width - meterWidth) / 2
+        const top = (height - rowHeight * 2 - gap * 2) / 2 + Math.min(height * 0.045, 8)
+        c.font = Math.max(9, Math.min(22, rowHeight * 0.8)) + "px monospace"
+        c.textAlign = "right"
+        c.textBaseline = "middle"
+        for (let channel = 0; channel < 2; ++channel) {
+            const y = top + channel * (rowHeight + gap * 2)
+            const lit = Math.ceil((levels[channel] || 0) * count)
+            const peak = Math.ceil((peaks[channel] || 0) * count) - 1
+            c.fillStyle = "#b3d491"
+            c.fillText(channel === 0 ? "L" : "R", left - 7, y + rowHeight / 2)
+            for (let segment = 0; segment < count; ++segment) {
+                const x = left + segment * step
+                const bright = segment < lit || segment === peak
+                c.fillStyle = bright ? (segment === peak || segment >= count - 4 ? "#f7d27a" : "#b1ee86") : "#173124"
+                if (bright) {
+                    c.globalAlpha = 0.24
+                    c.fillRect(x - gap * 0.28, y - 1, step - gap * 0.44, rowHeight + 2)
+                }
+                c.globalAlpha = 1
+                c.fillRect(x, y, step - gap, rowHeight)
             }
         }
-        c.globalAlpha = 1
     }
     onAmbientChanged: requestPaint(false)
     onEffectChanged: requestPaint(false)
@@ -111,8 +116,9 @@ Item {
             const wave = visual.ambient ? Array.from({length: 128}, (_, i) => 0.3 * Math.sin(i * 0.12 + phase)) : analyzer.waveform
             const energy = visual.ambient ? 0.3 : Math.min(1, Math.sqrt(analyzer.level) * 1.8)
             const glowing = visual.ambient || analyzer.running
-            if (effect === "grid") {
-                visual.paintGrid(c, width, height, bands)
+            if (effect === "meter") {
+                visual.paintMeter(c, width, height, visual.ambient ? [] : analyzer.meterLevels,
+                                  visual.ambient ? [] : analyzer.meterPeaks)
             } else if (effect === "spectrum") {
                 const step = (width - 24) / Math.max(1, bands.length)
                 const g = c.createLinearGradient(0, height, 0, 0)

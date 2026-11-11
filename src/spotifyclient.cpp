@@ -77,6 +77,9 @@ SpotifyClient::SpotifyClient(QObject *parent, QNetworkAccessManager *transport)
         m_streamingAuthorized=m_settings.value(streamingGrantKey(),false).toBool();
         m_signedOut=m_settings.value("spotify/signedOut/"+m_clientId,false).toBool();
     }
+    loadResumeTrack();
+    connect(this,&SpotifyClient::trackChanged,this,&SpotifyClient::refreshFavorite);
+    connect(this,&SpotifyClient::sessionChanged,this,&SpotifyClient::favoriteChanged);
     m_track=Phosrack::playbackState({});
     m_status=tr("Not connected");
     restoreRateLimit();
@@ -91,10 +94,17 @@ SpotifyClient::SpotifyClient(QObject *parent, QNetworkAccessManager *transport)
     });
     connect(&m_callback,&QTcpServer::newConnection,this,&SpotifyClient::acceptCallback);
     m_clock.setInterval(500);
-    connect(&m_clock,&QTimer::timeout,this,[this]{updateRateLimit();if(track().value("playing").toBool())emit trackChanged();});
+    connect(&m_clock,&QTimer::timeout,this,[this]{
+        updateRateLimit();
+        const auto savedAt=m_resumeTrack.value("savedAt").toLongLong();
+        if(savedAt&&QDateTime::currentMSecsSinceEpoch()-savedAt>=24*60*60*1000) {
+            clearResumeTrack();emit trackChanged();
+        } else if(track().value("playing").toBool())emit trackChanged();
+    });
     m_clock.start();
 }
 SpotifyClient::~SpotifyClient() {
+    if(authorized()&&m_resumeObserved)rememberPlayback((!m_integratedPlayback||m_localPlaybackActive)&&!track().value("uri").toString().isEmpty()?track():m_resumeTrack,true);
 #ifndef Q_OS_WIN
     if(m_wallet)delete m_wallet;
 #endif
@@ -109,7 +119,8 @@ void SpotifyClient::setClientId(const QString &id) {
     restoreRateLimit();
     m_streamingAuthorized=!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")&&m_settings.value(streamingGrantKey(),false).toBool();
     m_signedOut=!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")&&m_settings.value("spotify/signedOut/"+m_clientId,false).toBool();
-    emit clientIdChanged();
+    loadResumeTrack();
+    emit clientIdChanged();emit trackChanged();
 }
 void SpotifyClient::resetToDefaultClientId(){setClientId({});}
 void SpotifyClient::saveClientIdOverride() {
@@ -176,7 +187,7 @@ void SpotifyClient::updateRateLimit() {
     if(!rateLimited()) {
         m_rateLimitPublished=false;m_quotaExceeded=false;
         updatePolling();
-        if(authorized())pollPlaybackState();
+        if(authorized()){pollPlaybackState();refreshFavorite();}
         else if(!m_refreshToken.isEmpty())refreshToken();
     }
     emit rateLimitChanged();emit errorChanged();
@@ -232,6 +243,82 @@ void SpotifyClient::setIntegratedPlayback(bool value) {
     updatePolling();
     emit integratedPlaybackChanged();emit trackChanged();
 }
+QVariantMap SpotifyClient::resumeTrack() const {
+    if(authorized()&&m_integratedPlayback&&!m_track.value("title").toString().isEmpty())return m_track;
+    return m_resumeTrack;
+}
+void SpotifyClient::loadResumeTrack() {
+    m_libraryWriteAuthorized=false;
+    if(qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")||m_clientId.isEmpty())return;
+    m_libraryWriteAuthorized=m_settings.value("spotify/libraryWriteGrant/"+m_clientId,false).toBool();
+    if(m_signedOut)return;
+    const auto saved=m_settings.value("spotify/resume/"+m_clientId).toMap();
+    const auto age=QDateTime::currentMSecsSinceEpoch()-saved.value("savedAt").toLongLong();
+    if(age>=0&&age<24*60*60*1000&&playbackUri(saved.value("uri").toString(),false))
+        m_resumeTrack=saved;
+    else if(!saved.isEmpty())m_settings.remove("spotify/resume/"+m_clientId);
+}
+void SpotifyClient::rememberPlayback(const QVariantMap &state,bool force) {
+    const auto uri=state.value("uri").toString();
+    const auto title=state.value("title").toString();
+    if(!authorized()||!playbackUri(uri,false)||title.isEmpty()||m_signedOut)return;
+    const auto now=QDateTime::currentMSecsSinceEpoch();
+    const bool changedTrack=uri!=m_resumeTrack.value("uri").toString();
+    const int duration=std::max(0,state.value("duration").toInt());
+    const auto context=state.value("contextUri").toString();
+    m_resumeTrack={{"uri",uri},{"title",title},{"artist",state.value("artist")},
+        {"contextUri",playbackUri(context,true)?context:QString()},
+        {"url","https://open.spotify.com/"+uri.section(':',1,1)+"/"+uri.section(':',2,2)},
+        {"duration",duration},{"position",std::clamp(state.value("position").toInt(),0,duration)},
+        {"savedAt",now},{"savedResume",true}};
+    m_resumeObserved=true;
+    if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")&&!m_clientId.isEmpty()
+        &&(force||changedTrack||now-m_resumeSavedAt>=5000)) {
+        m_settings.setValue("spotify/resume/"+m_clientId,m_resumeTrack);
+        m_resumeSavedAt=now;
+    }
+}
+void SpotifyClient::clearResumeTrack() {
+    m_resumeTrack.clear();m_resumeSavedAt=0;m_resumeObserved=false;
+    if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")&&!m_clientId.isEmpty())
+        m_settings.remove("spotify/resume/"+m_clientId);
+}
+QString SpotifyClient::favoriteTrackUri() const {
+    auto uri=track().value("uri").toString();
+    if(uri.isEmpty())uri=resumeTrack().value("uri").toString();
+    return uri.startsWith("spotify:track:")&&playbackUri(uri,false)?uri:QString();
+}
+void SpotifyClient::refreshFavorite() {
+    const auto uri=authorized()?favoriteTrackUri():QString();
+    if(uri==m_favoriteUri)return;
+    m_favoriteUri=uri;
+    m_favoriteSaved=m_favoriteKnown=m_favoriteLoading=false;
+    const int generation=++m_favoriteGeneration;
+    if(uri.isEmpty()||rateLimited()||m_refreshing){emit favoriteChanged();return;}
+    m_favoriteLoading=true;emit favoriteChanged();
+    const auto current=[this,generation]{return generation==m_favoriteGeneration;};
+    const auto failed=[this,current]{if(current()){m_favoriteLoading=false;emit favoriteChanged();}};
+    apiDocument("GET","me/library/contains?uris="+QString::fromLatin1(QUrl::toPercentEncoding(uri)),{},
+        [this](const QJsonDocument &result,int){
+            const auto values=result.array();
+            m_favoriteKnown=!values.isEmpty()&&values.at(0).isBool();
+            m_favoriteSaved=m_favoriteKnown&&values.at(0).toBool();
+            m_favoriteLoading=false;emit favoriteChanged();
+        },false,failed,current);
+}
+void SpotifyClient::toggleFavorite() {
+    if(!favoriteAvailable()||rateLimited()||busy())return;
+    if(!m_libraryWriteAuthorized){fail(tr("Disconnect and reconnect Spotify to grant access to change liked songs."));return;}
+    const auto uri=favoriteTrackUri();
+    const int generation=m_favoriteGeneration;
+    const bool save=!(m_favoriteKnown&&m_favoriteSaved);
+    const auto current=[this,generation]{return generation==m_favoriteGeneration;};
+    m_favoriteLoading=true;emit favoriteChanged();
+    api(save?"PUT":"DELETE","me/library?uris="+QString::fromLatin1(QUrl::toPercentEncoding(uri)),{},
+        [this,save](const QJsonObject &,int){
+            m_favoriteKnown=true;m_favoriteSaved=save;m_favoriteLoading=false;emit favoriteChanged();
+        },true,[this,current]{if(current()){m_favoriteLoading=false;emit favoriteChanged();}},current);
+}
 QString SpotifyClient::streamingGrantKey() const {return "spotify/streamingGrant/"+m_clientId;}
 bool SpotifyClient::hasStreamingGrant(const QString &scopes) const {
     const auto granted=scopes.split(' ',Qt::SkipEmptyParts);
@@ -254,7 +341,7 @@ void SpotifyClient::setLocalPlaybackDevice(const QString &deviceId) {
 }
 void SpotifyClient::clearLocalPlaybackDevice() {
     const bool hadDevice=!m_localDeviceId.isEmpty();
-    m_localDeviceId.clear();m_localTrack.clear();m_localPlaybackActive=false;
+    m_localDeviceId.clear();m_localTrack.clear();m_localPlaybackActive=false;setSdkQueue({});
     updatePolling();
     if(hadDevice)emit localPlaybackReadyChanged();
     emit trackChanged();
@@ -263,11 +350,13 @@ void SpotifyClient::updateLocalPlaybackState(const QVariantMap &state) {
     if(!localPlaybackReady()||!authorized())return;
     if(state.contains("volume"))m_localVolume=std::clamp(state.value("volume").toInt(),0,100);
     if(!state.value("active",true).toBool()) {
-        m_localPlaybackActive=false;updatePolling();emit trackChanged();return;
+        m_localPlaybackActive=false;setSdkQueue({});updatePolling();emit trackChanged();return;
     }
     m_localTrack=state;
+    m_localTrack.remove("nextTracks");
     const bool remoteActive=!m_track.value("deviceId").toString().isEmpty()&&m_track.value("deviceId").toString()!=m_localDeviceId;
     if(!remoteActive||state.value("playing").toBool()||m_localPlaybackActive)m_localPlaybackActive=true;
+    if(m_localPlaybackActive){rememberPlayback(m_localTrack);setSdkQueue(state.value("nextTracks").toList());}
     m_localPositionClock.restart();updatePolling();emit trackChanged();
 }
 void SpotifyClient::setActive(bool value) {
@@ -360,7 +449,7 @@ void SpotifyClient::beginOAuth() {
     query.addQueryItem("redirect_uri",redirectUri);query.addQueryItem("state",QString::fromLatin1(m_oauthState));
     query.addQueryItem("code_challenge_method","S256");
     query.addQueryItem("code_challenge",QString::fromLatin1(Phosrack::pkceChallenge(m_verifier)));
-    const QString scopes=QStringLiteral("user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read playlist-read-private playlist-read-collaborative");
+    const QString scopes=QStringLiteral("user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-library-modify playlist-read-private playlist-read-collaborative");
     m_oauthStreamingRequested=m_integratedPlayback;
     query.addQueryItem("scope",m_oauthStreamingRequested?QStringLiteral("streaming user-read-private user-read-email ")+scopes:scopes);
     url.setQuery(query);m_status=tr("Authorize Phosrack in your browser…");emit sessionChanged();m_loginTimeout.start(180000);
@@ -465,6 +554,7 @@ void SpotifyClient::requestToken(const QByteArray &form) {
         if(code!=200||data.value("access_token").toString().isEmpty()) {
             if(data.value("error").toString()=="invalid_grant") {
                 setSignedOut(true);
+                clearResumeTrack();
                 forgetRefresh();
                 clearSession(false);
                 m_status=tr("Please reconnect");fail(tr("Authorization expired or was revoked. Connect Spotify again."));
@@ -480,6 +570,10 @@ void SpotifyClient::requestToken(const QByteArray &form) {
         }
         const bool streamingGrant=data.contains("scope")?hasStreamingGrant(data.value("scope").toString()):(newGrant?requestedStreamingGrant:m_streamingAuthorized);
         m_streamingAuthorized=streamingGrant;
+        if(data.contains("scope"))m_libraryWriteAuthorized=data.value("scope").toString().split(' ').contains("user-library-modify");
+        else if(newGrant)m_libraryWriteAuthorized=true;
+        if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE"))
+            m_settings.setValue("spotify/libraryWriteGrant/"+m_clientId,m_libraryWriteAuthorized);
         if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE"))m_settings.setValue(streamingGrantKey(),streamingGrant);
         if(m_integratedPlayback&&!streamingGrant){requireStreamingAuthorization();return;}
         m_accessToken=data.value("access_token").toString().toUtf8();
@@ -506,15 +600,18 @@ void SpotifyClient::disconnectSpotify() {
     // Persist intent before attempting deletion; neither a locked wallet nor
     // a process exit should cause an unwanted automatic reconnection.
     setSignedOut(true);
+    clearResumeTrack();
     clearSession(true,false);
 }
 void SpotifyClient::suspendSession() {
     clearSession(false,false);
 }
 void SpotifyClient::clearSession(bool forgetStoredToken,bool requestAuthorization) {
+    m_resumeTrack.clear();m_resumeSavedAt=0;m_resumeObserved=false;
     ++m_generation;m_callback.close();m_loginTimeout.stop();m_poll.stop();m_refresh.stop();
     const bool removed=!forgetStoredToken||forgetRefresh();
     m_accessToken.clear();m_refreshToken.clear();m_oauthState.clear();m_verifier.clear();
+    m_favoriteUri.clear();m_favoriteKnown=m_favoriteSaved=m_favoriteLoading=false;++m_favoriteGeneration;
     m_reauthorizeStreaming=false;m_oauthStreamingRequested=false;clearLocalPlaybackDevice();emit accessTokenChanged();
     m_connecting=m_refreshing=m_polling=m_command=false;m_interactiveLogin=false;
     m_devicesLoading=false;m_devicesFetchedAt=0;m_positionClock.invalidate();
@@ -530,6 +627,9 @@ void SpotifyClient::clearSession(bool forgetStoredToken,bool requestAuthorizatio
     emit sessionChanged();emit trackChanged();emit devicesChanged();
 }
 void SpotifyClient::api(const QByteArray &method,const QString &path,const QJsonObject &body,Result done,bool command,std::function<void()> failed,std::function<bool()> current) {
+    apiDocument(method,path,body,[done](const QJsonDocument &data,int code){if(done)done(data.object(),code);},command,failed,current);
+}
+void SpotifyClient::apiDocument(const QByteArray &method,const QString &path,const QJsonObject &body,DocumentResult done,bool command,std::function<void()> failed,std::function<bool()> current) {
     if(!authorized()||m_refreshing) {if(command)fail(tr("Connect Spotify or wait for the session to refresh."));if(failed)failed();return;}
     if(rateLimited()) {if(command)emit errorChanged();if(failed)failed();return;}
     if(command&&m_command){if(failed)failed();return;}
@@ -543,10 +643,10 @@ void SpotifyClient::api(const QByteArray &method,const QString &path,const QJson
     connect(reply,&QNetworkReply::finished,this,[this,reply,generation,applicationId,command,done,path,method,failed,current]{
         reply->deleteLater();
         const int code=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const auto data=QJsonDocument::fromJson(reply->readAll()).object();
+        const auto data=QJsonDocument::fromJson(reply->readAll());
         // Even an obsolete search, or a reply received after Disconnect, must
         // not lose the server's cooldown for the application that sent it.
-        if(code==429)recordRateLimit(applicationId,reply->rawHeader("Retry-After"),data);
+        if(code==429)recordRateLimit(applicationId,reply->rawHeader("Retry-After"),data.object());
         if(generation!=m_generation)return;
         if(path=="me/player" && method=="GET")m_polling=false;
         if(command){m_command=false;emit sessionChanged();}
@@ -571,6 +671,7 @@ void SpotifyClient::refreshState() {
     m_polling=true;
     api("GET","me/player",{},[this](const QJsonObject &o,int){
         m_track=Phosrack::playbackState(o);m_positionClock.restart();
+        if(!m_integratedPlayback||!m_localPlaybackActive)rememberPlayback(m_track);
         if(localPlaybackReady()) {
             m_localPlaybackActive=m_track.value("deviceId").toString()==m_localDeviceId;
             if(m_localPlaybackActive) {
@@ -616,7 +717,20 @@ void SpotifyClient::playPause(){
     const auto current=track();
     if(m_integratedPlayback&&!m_localPlaybackActive) {
         if(m_track.value("deviceId").toString().isEmpty()) {
-            fail(tr("Choose a track from Search or Library to start playback in Phosrack."));return;
+            const auto saved=resumeTrack();
+            const auto uri=saved.value("uri").toString();
+            if(playbackUri(uri,false)) {
+                const int duration=saved.value("duration").toInt();
+                const int position=saved.value("position").toInt();
+                QJsonObject body{{"position_ms",position>=duration?0:position}};
+                const auto context=saved.value("contextUri").toString();
+                if(playbackUri(context,true)) {
+                    body["context_uri"]=context;
+                    body["offset"]=QJsonObject{{"uri",uri}};
+                } else body["uris"]=QJsonArray{uri};
+                control("PUT","me/player/play",body);
+            } else fail(tr("Choose a track from Search or Library to start playback in Phosrack."));
+            return;
         }
         emit localPlaybackCommand("activate",{});
         control("PUT","me/player",{{"device_ids",QJsonArray{m_localDeviceId}},{"play",true}});return;
@@ -650,7 +764,7 @@ void SpotifyClient::transfer(const QString &deviceId){
 
 void SpotifyClient::clearCollections() {
     ++m_searchGeneration;++m_libraryGeneration;
-    m_searchResults.clear();m_queueItems.clear();m_libraryItems.clear();
+    m_searchResults.clear();m_queueItems.clear();m_libraryItems.clear();m_queueForcePending=false;
     m_searchQuery.clear();m_libraryView.clear();m_libraryPath.clear();
     m_queueFetchedAt=0;m_queueTrackUri.clear();
     m_searchOffset=m_libraryOffset=0;
@@ -686,14 +800,27 @@ void SpotifyClient::search(const QString &query,bool more) {
         m_searchLoading=false;emit collectionsChanged();
     },[this,generation]{return generation==m_searchGeneration;});
 }
+QVariantList SpotifyClient::queueItems() const {
+    if(!m_sdkQueueItems.isEmpty()&&(m_queueItems.isEmpty()||m_queueTrackUri!=queueTrackIdentity()))
+        return m_sdkQueueItems;
+    return m_queueItems;
+}
+void SpotifyClient::setSdkQueue(const QVariantList &items) {
+    if(items==m_sdkQueueItems)return;
+    m_sdkQueueItems=items;emit queueChanged();
+}
 QString SpotifyClient::queueTrackIdentity() const {
-    const auto currentTrack=track();
-    auto uri=currentTrack.value("uri").toString();
-    if(uri.isEmpty())uri=currentTrack.value("url").toString();
+    const auto current=track();
+    auto uri=current.value("uri").toString();
+    if(uri.isEmpty())uri=current.value("url").toString();
+    if(uri.isEmpty()&&m_integratedPlayback&&!m_localPlaybackActive) {
+        uri=m_track.value("uri").toString();
+        if(uri.isEmpty())uri=m_track.value("url").toString();
+    }
     return uri;
 }
 void SpotifyClient::refreshQueue(bool force) {
-    if(m_queueLoading)return;
+    if(m_queueLoading){m_queueForcePending=m_queueForcePending||force;return;}
     const auto uri=queueTrackIdentity();
     if(!authorized()||m_refreshing||rateLimited()
         ||(!force&&m_queueFetchedAt>0&&m_queueTrackUri==uri&&QDateTime::currentMSecsSinceEpoch()-m_queueFetchedAt<30000)) {
@@ -706,8 +833,9 @@ void SpotifyClient::refreshQueue(bool force) {
         m_queueLoading=false;emit queueChanged();emit collectionsChanged();
         // A track change while this request was in flight must not leave the
         // previous queue cached indefinitely once periodic polling is gone.
-        if(queueTrackIdentity()!=uri)refreshQueue();
-    },false,[this]{m_queueLoading=false;emit collectionsChanged();});
+        const bool force=m_queueForcePending;m_queueForcePending=false;
+        if(force||queueTrackIdentity()!=uri)refreshQueue(force);
+    },false,[this]{m_queueLoading=m_queueForcePending=false;emit collectionsChanged();});
 }
 void SpotifyClient::loadLibrary(const QString &kind,bool more) {
     if(more) {

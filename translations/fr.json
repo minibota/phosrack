@@ -1,4 +1,11 @@
 {
+  "Stereo meter": "Vumètre stéréo",
+  "Notes": "Notes",
+  "Reconnect Spotify to edit liked songs": "Reconnectez Spotify pour modifier vos titres favoris",
+  "Remove from liked songs": "Retirer des titres favoris",
+  "Add to liked songs": "Ajouter aux titres favoris",
+  "Last played": "Dernière lecture",
+  "Disconnect and reconnect Spotify to grant access to change liked songs.": "Déconnectez puis reconnectez Spotify pour autoriser la modification des titres favoris.",
   "%1 major": "%1 majeur",
   "%1 minor": "%1 mineur",
   "C, C♯, D, D♯, E, F, F♯, G, G♯, A, A♯, B": "Do, Do♯, Ré, Ré♯, Mi, Fa, Fa♯, Sol, Sol♯, La, La♯, Si",

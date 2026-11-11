@@ -33,8 +33,8 @@ class AudioAnalyzer : public QObject {
     Q_PROPERTY(double level READ level NOTIFY frameReady)
     Q_PROPERTY(bool pitchEnabled READ pitchEnabled WRITE setPitchEnabled NOTIFY changed)
     Q_PROPERTY(QVariantList pitchClasses READ pitchClasses NOTIFY frameReady)
-    Q_PROPERTY(int chordRoot READ chordRoot NOTIFY frameReady)
-    Q_PROPERTY(bool minorChord READ minorChord NOTIFY frameReady)
+    Q_PROPERTY(QVariantList meterLevels READ meterLevels NOTIFY frameReady)
+    Q_PROPERTY(QVariantList meterPeaks READ meterPeaks NOTIFY frameReady)
 public:
     explicit AudioAnalyzer(QObject *parent=nullptr);
     ~AudioAnalyzer() override;
@@ -57,8 +57,8 @@ public:
     bool pitchEnabled() const { return m_pitchEnabled; }
     void setPitchEnabled(bool value);
     QVariantList pitchClasses() const { return m_pitchClasses; }
-    int chordRoot() const { return m_chordRoot; }
-    bool minorChord() const { return m_minorChord; }
+    QVariantList meterLevels() const { return {m_meterLevels[0], m_meterLevels[1]}; }
+    QVariantList meterPeaks() const { return {m_meterPeaks[0], m_meterPeaks[1]}; }
     Q_INVOKABLE void refreshSources();
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
@@ -72,8 +72,11 @@ private:
     void stopCapture();
     void consume();
     void updateFrame();
-    bool readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch);
+    bool readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch,
+                        Phosrack::StereoMeterFrame &meter);
     void resetPitch();
+    void resetMeter();
+    void updateMeter(const Phosrack::StereoMeterFrame &meter);
     void updatePitch(const Phosrack::PitchSamples &samples);
     void setStatus(const QString &value);
 #ifdef Q_OS_WIN
@@ -92,8 +95,10 @@ private:
 #endif
     QVariantList m_pitchClasses;
     Phosrack::PitchClasses m_previousPitch{};
-    int m_pitchCountdown=0,m_idleFrames=0,m_chordCandidate=-1,m_chordRoot=-1;
-    bool m_pitchEnabled=false,m_minorChord=false;
+    int m_pitchCountdown=0,m_idleFrames=0;
+    std::array<double, 2> m_meterLevels{}, m_meterPeaks{};
+    std::array<int, 2> m_peakHoldFrames{};
+    bool m_pitchEnabled=false;
     double m_level=0;
     bool m_requested=false,m_active=false;
 };

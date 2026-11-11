@@ -2,7 +2,7 @@
 
 Phosrack has a native Windows build using Qt 6 and MSVC 2022. The Windows workflow
 creates a portable ZIP and an NSIS installer, uploaded as the
-`phosrack-0.3.4-windows-x64` Actions artifact and attached to the versioned release.
+`phosrack-0.3.5-windows-x64` Actions artifact and attached to the versioned release.
 
 ## Features and runtime status
 
@@ -15,8 +15,8 @@ creates a portable ZIP and an NSIS installer, uploaded as the
 
 A native build or clean deployment smoke test does not verify DRM playback or audio
 hardware. **Real Windows integrated audio playback, WASAPI and installed Equalizer APO
-processing have not yet been validated for v0.3.4.** See the
-[validation notes](validation-0.3.4.md) for the exact checks completed. The audible
+processing have not yet been validated for v0.3.5.** See the
+[validation notes](validation-0.3.5.md) for the exact checks completed. The audible
 Linux feasibility experiment does not establish Windows playback support on a given PC.
 
 ## Verified media capabilities
@@ -34,7 +34,7 @@ Choosing a Widevine DLL does not add an audio decoder missing from the Qt build.
 
 ## Spotify and DRM setup
 
-v0.3.4 does not bundle a shared Spotify Client ID. Configure your own application in
+v0.3.5 does not bundle a shared Spotify Client ID. Configure your own application in
 **Settings > Spotify application setup**, enable **Web API** and **Web Playback SDK**
 in its developer dashboard, and register exactly `http://127.0.0.1:43821/callback`.
 Click **Connect Spotify**, accept the integration terms and authorize your Premium account. A Client Secret is
@@ -86,7 +86,7 @@ For a private build or fork, replace the empty CMake option with
 own public ID. The deployment/package reconfigure preserves that cached value.
 An older build cache can retain the previous ID, so set the option explicitly when
 reconfiguring. See [application configuration](packaging.md#spotify-application-configuration)
-for the remaining Spotify access restrictions. Official v0.3.4 builds use an empty default.
+for the remaining Spotify access restrictions. Official v0.3.5 builds use an empty default.
 
 ## Equalizer APO
 

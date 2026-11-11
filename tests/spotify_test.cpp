@@ -342,6 +342,58 @@ private slots:
         client.m_track["url"]="https://open.spotify.com/track/fourth";
         client.refreshQueue();QTRY_VERIFY(!client.collectionBusy());QCOMPARE(transport.requests.size(),5);
     }
+    void favoritesReadSaveAndRemoveUsingTheTrackUri() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client);
+        const QString uri="spotify:track:1111111111111111111111";
+        client.m_track["uri"]=uri;
+        transport.responses.enqueue({200,"[false]"});
+        client.refreshFavorite();QTRY_VERIFY(client.favoriteAvailable());
+        QVERIFY(!client.favoriteSaved());
+        QCOMPARE(transport.requests.first().request.url().path(),QString("/v1/me/library/contains"));
+        QCOMPARE(QUrlQuery(transport.requests.first().request.url()).queryItemValue("uris",QUrl::FullyDecoded),uri);
+        client.toggleFavorite();
+        QCOMPARE(transport.requests.size(),1);
+        QVERIFY(client.error().contains("reconnect"));
+        client.m_libraryWriteAuthorized=true;
+        client.toggleFavorite();QTRY_VERIFY(client.favoriteSaved());
+        QCOMPARE(transport.requests[1].method,QByteArray("PUT"));
+        QCOMPARE(transport.requests[1].request.url().path(),QString("/v1/me/library"));
+        QCOMPARE(QUrlQuery(transport.requests[1].request.url()).queryItemValue("uris",QUrl::FullyDecoded),uri);
+        client.toggleFavorite();QTRY_VERIFY(!client.favoriteSaved());
+        QCOMPARE(transport.requests[2].method,QByteArray("DELETE"));
+    }
+    void sdkQueueCanFillAnEmptyStartupQueue() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        client.setLocalPlaybackDevice("sdk-device");
+        const QVariantList next{QVariantMap{{"title","Upcoming"},{"uri","spotify:track:2222222222222222222222"}}};
+        client.updateLocalPlaybackState({{"active",true},{"nextTracks",next}});
+        QCOMPARE(client.queueItems(),next);
+        QVERIFY(transport.requests.isEmpty());
+        client.refreshQueue();
+        QTRY_VERIFY(!client.collectionBusy());
+        QCOMPARE(client.queueItems(),next);
+        client.updateLocalPlaybackState({{"active",false}});
+        QVERIFY(client.queueItems().isEmpty());
+    }
+    void rememberedTrackStaysPausedUntilPlayIsRequested() {
+        MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
+        const QString uri="spotify:track:1111111111111111111111";
+        client.rememberPlayback({{"title","Last song"},{"uri",uri},{"position",32000},{"duration",100000}});
+        QCOMPARE(client.resumeTrack().value("position").toInt(),32000);
+        QVERIFY(!client.track().value("playing").toBool());
+        QVERIFY(transport.requests.isEmpty());
+        client.setLocalPlaybackDevice("sdk-device");
+        for(const auto &request:transport.requests)QCOMPARE(request.method,QByteArray("GET"));
+        client.playPause();
+        QTRY_VERIFY(!client.busy());
+        const auto &play=transport.requests.last();
+        QCOMPARE(play.request.url().path(),QString("/v1/me/player/play"));
+        const auto body=QJsonDocument::fromJson(play.body).object();
+        QCOMPARE(body.value("position_ms").toInt(),32000);
+        QCOMPARE(body.value("uris").toArray().first().toString(),uri);
+        client.disconnectSpotify();
+        QVERIFY(client.resumeTrack().isEmpty());
+    }
     void sdkPlaybackDoesNotPollRestForItsOwnState() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);
         client.setLocalPlaybackDevice("sdk-device");

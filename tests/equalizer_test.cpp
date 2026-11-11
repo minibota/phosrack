@@ -24,10 +24,25 @@ private slots:
             const auto id=item.toMap().value("id").toString();eq.selectPreset(id);QCOMPARE(eq.preset(),id);
             for(const auto &gain:eq.gains())QVERIFY(std::isfinite(gain.toDouble())&&std::abs(gain.toDouble())<=12);
         }
-        eq.selectPreset("bass");QCOMPARE(eq.gains()[0].toDouble(),8.0);QVERIFY(eq.preamp()<0);
+        eq.selectPreset("bass");QCOMPARE(eq.gains()[0].toDouble(),8.0);QCOMPARE(eq.preamp(),0.0);
         eq.setBand(3,2.5);QCOMPARE(eq.preset(),QString("custom"));QCOMPARE(eq.gains()[3].toDouble(),2.5);
         eq.reset();QCOMPARE(eq.preset(),QString("flat"));QCOMPARE(eq.preamp(),0.0);
         for(const auto &gain:eq.gains())QCOMPARE(gain.toDouble(),0.0);
+    }
+    void preampIsIndependentOfPresetAndStartsAtZero() {
+        Equalizer eq;
+        eq.setPreamp(-5);
+        eq.setEnabled(true);
+        QCOMPARE(eq.preamp(),0.);
+        eq.selectPreset("rock");
+        eq.setPreamp(-4);
+        QCOMPARE(eq.preset(),QString("rock"));
+        eq.selectPreset("jazz");
+        QCOMPARE(eq.preamp(),-4.);
+        eq.setEnabled(false);
+        eq.setEnabled(true);
+        QCOMPARE(eq.preamp(),0.);
+        QCOMPARE(eq.preset(),QString("jazz"));
     }
     void rejectsInvalidControls() {
         Equalizer eq;eq.setBand(-1,3);eq.setBand(10,3);eq.setBand(0,std::numeric_limits<double>::quiet_NaN());

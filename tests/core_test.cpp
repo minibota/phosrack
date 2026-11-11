@@ -63,7 +63,7 @@ private slots:
         QVERIFY2(center>850&&center<1150,qPrintable(QString::number(center)));
         for(auto band:frame.bands)QVERIFY(std::isfinite(band)&&band>=0&&band<=1);
     }
-    void pitchClassesAndTriads() {
+    void pitchClassesForNotesAndSilence() {
         const auto synthesize = [](std::initializer_list<double> frequencies) {
             Phosrack::PitchSamples samples{};
             for (std::size_t i = 0; i < samples.size(); ++i)
@@ -72,19 +72,25 @@ private slots:
             return Phosrack::analyzePitch(samples);
         };
         const auto a = synthesize({220, 440, 660, 880, 1100});
-        QCOMPARE(a.notes[9], 1.f);
-        QCOMPARE(a.chordRoot, -1);
+        QCOMPARE(a[9], 1.f);
         const auto cMajor = synthesize({261.626, 329.628, 391.995});
-        QCOMPARE(cMajor.chordRoot, 0);
-        QVERIFY(!cMajor.minor);
-        for (int note : {0, 4, 7}) QVERIFY(cMajor.notes[note] > 0.6f);
-        const auto aMinor = synthesize({261.626, 329.628, 440});
-        QCOMPARE(aMinor.chordRoot, 9);
-        QVERIFY(aMinor.minor);
-        QCOMPARE(synthesize({261.626, 329.628, 391.995, 440}).chordRoot, -1);
+        for (int note : {0, 4, 7}) QVERIFY(cMajor[note] > 0.6f);
         const auto silent = synthesize({});
-        QCOMPARE(silent.chordRoot, -1);
-        for (float note : silent.notes) QCOMPARE(note, 0.f);
+        for (float note : silent) QCOMPARE(note, 0.f);
+    }
+    void stereoMeterDoesNotDownmixOrRetainOldPeaks() {
+        Phosrack::AudioHistory history;
+        history.append(0.f,0.8f,-0.8f);
+        history.append(0.2f,0.4f,0.f);
+        auto frame=history.takeMeterFrame();
+        QCOMPARE(frame.peak[0],0.8f);
+        QCOMPARE(frame.peak[1],0.8f);
+        QVERIFY(frame.rms[0]>frame.rms[1]);
+        history.append(0.3f,0.f,0.6f);
+        frame=history.takeMeterFrame();
+        QCOMPARE(frame.rms[0],0.f);
+        QCOMPARE(frame.peak[0],0.f);
+        QCOMPARE(frame.rms[1],0.6f);
     }
 };
 QTEST_GUILESS_MAIN(CoreTest)

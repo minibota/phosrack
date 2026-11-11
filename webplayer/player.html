@@ -15,7 +15,11 @@ function publishState(state){
  const type=uri.split(':')[1],id=uri.split(':')[2];
  report('state',{
   active:!!track,playing:!state.paused,position:state.position||0,duration:state.duration||0,volume,
-  uri,title:track?.name||'',artist:(track?.artists||[]).map(a=>a.name).join(', '),
+  uri,contextUri:state.context?.uri||'',title:track?.name||'',artist:(track?.artists||[]).map(a=>a.name).join(', '),
+  nextTracks:(state.track_window?.next_tracks||[]).filter(item=>item?.uri&&item?.name).map(item=>({
+   uri:item.uri,title:item.name,subtitle:(item.artists||[]).map(a=>a.name).join(', '),
+   art:item.album?.images?.[0]?.url||'',canPlay:true
+  })),
   album:track?.album?.name||'',art:track?.album?.images?.[0]?.url||'',
   url:/^(track|episode)$/.test(type)&&/^[A-Za-z0-9]{22}$/.test(id)?`https://open.spotify.com/${type}/${id}`:'',
   shuffle:!!state.shuffle,repeat:['off','context','track'][state.repeat_mode]||'off',

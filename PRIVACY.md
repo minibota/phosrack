@@ -37,6 +37,19 @@ pause. These are local settings, not an uploaded profile. They do not contain yo
 Spotify password, Client Secret or access token. Installer and runtime dependencies
 may have their own settings or logs.
 
+## Playback recovery and liked songs
+
+Phosrack temporarily keeps the last track's title, artist, Spotify URI, playback context, duration
+and position on this computer for up to 24 hours. It is associated with the
+configured Spotify application and cleared on explicit disconnect or revoked
+authorization. The playback queue is fetched from Spotify or supplied by the
+active Web Playback SDK session and stays in memory. Playback resumes only after
+you press Play.
+
+The heart button checks and changes the track's membership in your Spotify
+library using your authorization. Phosrack does not send this information to
+another service.
+
 ## Local audio tools
 
 While the local visualizer is visible, it receives sound from the selected computer

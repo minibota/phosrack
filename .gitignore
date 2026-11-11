@@ -32,3 +32,6 @@ compile_commands.json
 /releases/v0.3.4/*.exe
 /releases/v0.3.4/*.zip
 /releases/v0.3.4/*.flatpak
+/releases/v0.3.5/*.exe
+/releases/v0.3.5/*.zip
+/releases/v0.3.5/*.flatpak

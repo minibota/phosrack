@@ -28,13 +28,9 @@ struct MonitorFormat {
     }
 };
 
-inline float monitorMonoFrame(const unsigned char *frame,std::size_t bytes,const MonitorFormat &format) {
-    if(!frame||!format.valid()||bytes<format.frameBytes)return 0;
-    double sum=0;
-    for(unsigned channel=0;channel<format.channels;++channel) {
-        const auto *sample=frame+channel*format.sampleBytes();
+inline float monitorChannelSample(const unsigned char *sample, MonitorEncoding encoding) {
         double value=0;
-        switch(format.encoding) {
+        switch(encoding) {
         case MonitorEncoding::Float32: {
             float decoded=0;std::memcpy(&decoded,sample,sizeof(decoded));value=decoded;break;
         }
@@ -50,8 +46,14 @@ inline float monitorMonoFrame(const unsigned char *frame,std::size_t bytes,const
             std::int32_t decoded=0;std::memcpy(&decoded,sample,sizeof(decoded));value=double(decoded)/2147483648.;break;
         }
         }
-        if(std::isfinite(value))sum+=std::clamp(value,-1.,1.);
-    }
+    return std::isfinite(value) ? float(std::clamp(value,-1.,1.)) : 0.f;
+}
+
+inline float monitorMonoFrame(const unsigned char *frame,std::size_t bytes,const MonitorFormat &format) {
+    if(!frame||!format.valid()||bytes<format.frameBytes)return 0;
+    double sum=0;
+    for(unsigned channel=0;channel<format.channels;++channel)
+        sum+=monitorChannelSample(frame+channel*format.sampleBytes(),format.encoding);
     return float(sum/format.channels);
 }
 

@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QJsonObject>
+#include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QPointer>
 #include <QSettings>
@@ -30,6 +31,10 @@ class SpotifyClient : public QObject {
     Q_PROPERTY(QString status READ status NOTIFY sessionChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QVariantMap track READ track NOTIFY trackChanged)
+    Q_PROPERTY(QVariantMap resumeTrack READ resumeTrack NOTIFY trackChanged)
+    Q_PROPERTY(bool favoriteSaved READ favoriteSaved NOTIFY favoriteChanged)
+    Q_PROPERTY(bool favoriteAvailable READ favoriteAvailable NOTIFY favoriteChanged)
+    Q_PROPERTY(bool favoriteNeedsConsent READ favoriteNeedsConsent NOTIFY favoriteChanged)
     Q_PROPERTY(QVariantList devices READ devices NOTIFY devicesChanged)
     Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(QVariantList searchResults READ searchResults NOTIFY searchChanged)
@@ -59,10 +64,14 @@ public:
     QString status() const {return m_status;}
     QString error() const {return rateLimited()?rateLimitMessage():m_error;}
     QVariantMap track() const;
+    QVariantMap resumeTrack() const;
+    bool favoriteSaved() const {return m_favoriteSaved;}
+    bool favoriteAvailable() const {return authorized()&&!favoriteTrackUri().isEmpty()&&!m_favoriteLoading;}
+    bool favoriteNeedsConsent() const {return !m_libraryWriteAuthorized;}
     QVariantList devices() const {return m_devices;}
     bool active() const {return m_active;}
     QVariantList searchResults() const {return m_searchResults;}
-    QVariantList queueItems() const {return m_queueItems;}
+    QVariantList queueItems() const;
     QVariantList libraryItems() const {return m_libraryItems;}
     bool collectionBusy() const {return m_searchLoading||m_queueLoading||m_libraryLoading;}
     bool hasMoreSearch() const {return m_hasMoreSearch;}
@@ -107,12 +116,14 @@ public:
     Q_INVOKABLE void loadMoreLibrary();
     Q_INVOKABLE void playItem(const QString &uri, bool context=false);
     Q_INVOKABLE void addToQueue(const QString &uri);
+    Q_INVOKABLE void toggleFavorite();
 signals:
     void clientIdChanged();
     void sessionChanged();
     void authorizationRequiredChanged();
     void rateLimitChanged();
     void trackChanged();
+    void favoriteChanged();
     void devicesChanged();
     void errorChanged();
     void activeChanged();
@@ -127,6 +138,7 @@ signals:
 private:
     friend class SpotifyClientTest;
     using Result=std::function<void(const QJsonObject &,int)>;
+    using DocumentResult=std::function<void(const QJsonDocument &,int)>;
     void startSession(bool interactive);
     void continueAuthorization();
     void setAuthorizationRequired(bool required);
@@ -142,6 +154,14 @@ private:
     void requestToken(const QByteArray &form);
     void refreshToken();
     void api(const QByteArray &method,const QString &path,const QJsonObject &body,Result done,bool command=false,std::function<void()> failed={},std::function<bool()> current={});
+    void apiDocument(const QByteArray &method,const QString &path,const QJsonObject &body,DocumentResult done,
+                     bool command,std::function<void()> failed={},std::function<bool()> current={});
+    QString favoriteTrackUri() const;
+    void refreshFavorite();
+    void rememberPlayback(const QVariantMap &state, bool force=false);
+    void loadResumeTrack();
+    void clearResumeTrack();
+    void setSdkQueue(const QVariantList &items);
     void control(const QByteArray &method,const QString &path,const QJsonObject &body={});
     void fail(const QString &message);
     bool persistRefresh();
@@ -172,12 +192,18 @@ private:
     QString m_localDeviceId;
     QByteArray m_accessToken,m_refreshToken,m_verifier,m_oauthState;
     QVariantMap m_track;
-    QVariantMap m_localTrack;
+    QVariantMap m_localTrack,m_resumeTrack;
+    QVariantList m_sdkQueueItems;
+    QString m_favoriteUri;
+    int m_favoriteGeneration=0;
+    bool m_favoriteKnown=false,m_favoriteSaved=false,m_favoriteLoading=false,m_libraryWriteAuthorized=false;
+    qint64 m_resumeSavedAt=0;
+    bool m_resumeObserved=false;
     QVariantList m_devices;
     QVariantList m_searchResults,m_queueItems,m_libraryItems;
     QString m_searchQuery,m_libraryView,m_libraryPath;
     int m_searchGeneration=0,m_libraryGeneration=0,m_searchOffset=0,m_libraryOffset=0;
-    bool m_searchLoading=false,m_queueLoading=false,m_libraryLoading=false;
+    bool m_searchLoading=false,m_queueLoading=false,m_queueForcePending=false,m_libraryLoading=false;
     bool m_hasMoreSearch=false,m_hasMoreLibrary=false;
     int m_generation=0;
     qint64 m_backoffUntil=0,m_queueFetchedAt=0,m_devicesFetchedAt=0;

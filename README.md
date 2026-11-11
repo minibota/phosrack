@@ -1,20 +1,20 @@
 # Phosrack
 
-[![Version 0.3.4](https://img.shields.io/badge/version-0.3.4-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.4)
+[![Version 0.3.5](https://img.shields.io/badge/version-0.3.5-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.5)
 [![Linux build](https://github.com/minibota/phosrack/actions/workflows/build.yml/badge.svg?branch=main&label=Linux)](https://github.com/minibota/phosrack/actions/workflows/build.yml)
 [![Windows build](https://github.com/minibota/phosrack/actions/workflows/windows.yml/badge.svg?branch=main&label=Windows)](https://github.com/minibota/phosrack/actions/workflows/windows.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
-**0.3.4 · QML + C++ desktop music rack** · GPL-3.0-or-later
+**0.3.5 · QML + C++ desktop music rack** · GPL-3.0-or-later
 
 A compact music player inspired by the classic Winamp era. Arrange its panels your
 way and enjoy its green phosphor glow. Listen inside Phosrack or use it to control
 another Spotify player. Use the local equalizer and reactive visuals without
 disconnecting from Spotify.
 
-[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.4) ·
+[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.5) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
-[Validation](docs/validation-0.3.4.md) · [Privacy](PRIVACY.md) · [Terms](TERMS.md) · [Issues](https://github.com/minibota/phosrack/issues)
+[Validation](docs/validation-0.3.5.md) · [Privacy](PRIVACY.md) · [Terms](TERMS.md) · [Issues](https://github.com/minibota/phosrack/issues)
 
 ## Screenshot
 
@@ -26,14 +26,16 @@ The Phosrack rack in English. This screenshot shows an earlier version.
 
 - Stack, reorder or fold the player, equalizer, visualizer and music panels.
 - Listen to Spotify inside Phosrack, or control Spotify on another player or device.
-- Album artwork, playback progress, volume, previous/next, shuffle and repeat.
+- Album artwork, scrolling long titles, a liked-songs button and playback controls.
+  See the last track and position on startup and press Play to resume.
 - Search for music, see what's coming next, and browse your saved tracks, albums
   and playlists.
-- Five audio-reactive phosphor effects, including an 8 × 6 grid and a display of
-  predominant notes and likely major or minor chords. Fullscreen can show the
+- Five audio-reactive phosphor effects, including a stereo meter with peak hold
+  and a full-width display of predominant notes. Fullscreen can show the
   current and next queued songs, and reduced motion is available.
 - Ten-band local equalizer with genre and tone presets, including Electronic,
-  Hip-hop, Acoustic and Treble boost. Keep your own custom settings.
+  Hip-hop, Acoustic and Treble boost. The preamp starts at 0 dB and stays where
+  you set it while you switch presets.
 - English, Spanish and French, following your computer's language. Other languages
   use English.
 - Sign in through your browser after a one-time Spotify setup. Phosrack restores
@@ -77,7 +79,7 @@ A few things to know before installing:
   have been tested. Playback inside the Windows app is experimental: its included
   audio support has limitations, and listening tests are still pending. Use the
   other-player mode if music will not start. A complete Flatpak sign-in/listening
-  test is also pending. See [what has been tested](docs/validation-0.3.4.md) and
+  test is also pending. See [what has been tested](docs/validation-0.3.5.md) and
   [Qt's technical requirements](https://doc.qt.io/qt-6.8/qtwebengine-features.html#html5-drm).
 - **No offline listening or downloads.** Phosrack needs an internet connection
   to play Spotify music and browse your account.
@@ -103,7 +105,7 @@ Read the [privacy notice](PRIVACY.md) and [Spotify integration terms](TERMS.md)
 before connecting your account. Phosrack's source remains GPL-3.0-or-later.
 
 Download the file for your computer from the
-[v0.3.4 release](https://github.com/minibota/phosrack/releases/tag/v0.3.4):
+[v0.3.5 release](https://github.com/minibota/phosrack/releases/tag/v0.3.5):
 
 - **Windows 11:** choose the `.exe` installer. The `.zip` is a portable version:
   extract it into a folder and open `phosrack.exe`.
@@ -112,11 +114,11 @@ Download the file for your computer from the
 
 Already using the Flatpak? Run this command in the folder containing your download:
 
-    flatpak install --user --reinstall ./phosrack-0.3.4-x86_64.flatpak
+    flatpak install --user --reinstall ./phosrack-0.3.5-x86_64.flatpak
 
 The [getting started guide](GETTING_STARTED.md) has the installation commands,
 including the extra step Fedora needs for these unsigned packages. The
-[testing notes](docs/validation-0.3.4.md) explain which features have been checked
+[testing notes](docs/validation-0.3.5.md) explain which features have been checked
 on each platform.
 
 ## Spotify setup and scope

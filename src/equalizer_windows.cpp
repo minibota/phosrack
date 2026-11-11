@@ -11,19 +11,19 @@
 
 namespace {
 double bounded(double x){return std::isfinite(x)?std::clamp(x,-12.0,12.0):0.0;}
-struct Preset {const char *id;std::array<double,10> gains;double preamp;};
+struct Preset {const char *id;std::array<double,10> gains; };
 constexpr std::array<Preset,11> curves{{
-    {"flat",{0,0,0,0,0,0,0,0,0,0},0},
-    {"rock",{4,3,1,-1,-2,-1,1,3,4,3},-5},
-    {"pop",{-1,1,3,4,3,0,-1,-1,0,1},-5},
-    {"jazz",{3,2,0,1,-1,-1,0,1,3,4},-5},
-    {"classical",{3,2,1,0,-2,-2,0,1,2,3},-4},
-    {"bass",{8,6,4,2,0,0,0,0,0,0},-9},
-    {"vocal",{-3,-2,-1,0,2,4,4,2,0,-2},-5},
-    {"electronic", {5,4,1,-2,-2,0,2,3,4,4},-6},
-    {"hiphop", {5,4,1,2,-1,-1,2,0,1,2},-6},
-    {"acoustic", {2,2,1,0,0,1,2,3,2,1},-4},
-    {"treble", {0,0,0,0,0,1,2,4,5,5},-6}
+    {"flat",{0,0,0,0,0,0,0,0,0,0}},
+    {"rock",{4,3,1,-1,-2,-1,1,3,4,3}},
+    {"pop",{-1,1,3,4,3,0,-1,-1,0,1}},
+    {"jazz",{3,2,0,1,-1,-1,0,1,3,4}},
+    {"classical",{3,2,1,0,-2,-2,0,1,2,3}},
+    {"bass",{8,6,4,2,0,0,0,0,0,0}},
+    {"vocal",{-3,-2,-1,0,2,4,4,2,0,-2}},
+    {"electronic", {5,4,1,-2,-2,0,2,3,4,4}},
+    {"hiphop", {5,4,1,2,-1,-1,2,0,1,2}},
+    {"acoustic", {2,2,1,0,0,1,2,3,2,1}},
+    {"treble", {0,0,0,0,0,1,2,4,5,5}}
 }};
 bool writeFile(const QString &path,const QByteArray &data) {
     QSaveFile file(path);
@@ -71,13 +71,13 @@ void Equalizer::setBand(int index,double gain) {
 void Equalizer::setPreamp(double gain) {
     if(!std::isfinite(gain))return;
     gain=bounded(gain);if(m_preamp==gain)return;
-    m_preamp=gain;m_preset="custom";save();emit gainsChanged();m_update.start();
+    m_preamp=gain;save();emit gainsChanged();m_update.start();
 }
 void Equalizer::selectPreset(const QString &id) {
     if(id=="custom"){m_preset=id;save();emit gainsChanged();return;}
     for(const auto &curve:curves)if(id==curve.id){
         for(int i=0;i<10;++i)m_gains[i]=curve.gains[i];
-        m_preamp=curve.preamp;m_preset=id;save();emit gainsChanged();m_update.start();return;
+        m_preset=id;save();emit gainsChanged();m_update.start();return;
     }
 }
 void Equalizer::reset(){selectPreset("flat");}
@@ -117,6 +117,7 @@ void Equalizer::setEnabled(bool value) {
     if(value==m_enabled)return;
     m_error.clear();
     if(!value){stop();if(!m_enabled)m_status=tr("Equalizer off");emit changed();return;}
+    setPreamp(0);
     if(qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")){
         m_enabled=true;m_status=tr("Equalizer preview — audio unchanged");emit changed();return;
     }

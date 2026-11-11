@@ -12,13 +12,14 @@ Item {
         {key: "orbit", icon: "◎", label: qsTr("Orbit")},
         {key: "spectrum", icon: "▥", label: qsTr("Spectrum")},
         {key: "scope", icon: "∿", label: qsTr("Oscilloscope")},
-        {key: "grid", icon: "▦", label: qsTr("Phosphor grid")},
-        {key: "notes", icon: "♫", label: qsTr("Notes and chords")}
+        {key: "meter", icon: "▰", label: qsTr("Stereo meter")},
+        {key: "notes", icon: "♫", label: qsTr("Notes")}
     ]
     property bool reducedMotion: false
     property bool visualizerFolded: settingsStore.read("desktop/folded/visualizer", false)
     property bool browserFolded: settingsStore.read("desktop/folded/browser", false)
-    property var browserNavigation: ({})
+    property var browserNavigation: ({page: settingsStore.read("desktop/musicPage", "search")})
+    readonly property var displayTrack: session.track.title ? session.track : session.resumeTrack
     property var musicBrowser: null
     property bool consentRestoreOnly: false
     property bool termsAcceptedThisSession: false
@@ -39,7 +40,8 @@ Item {
             if (order.length === 4 && ["player", "equalizer", "visualizer", "browser"].every(k => order.indexOf(k) >= 0)) panelOrder = order
         } catch (e) {}
         const effect = settingsStore.read("desktop/visualEffect", "orbit")
-        if (visualEffects.some(entry => entry.key === effect)) visualEffect = effect
+        if (effect === "grid") visualEffect = "meter"
+        else if (visualEffects.some(entry => entry.key === effect)) visualEffect = effect
         reducedMotion = settingsStore.read("reducedMotion", false)
     }
     function time(ms) { const n = Math.max(0, Math.floor(ms / 1000)); return Math.floor(n / 60).toString().padStart(2, "0") + ":" + (n % 60).toString().padStart(2, "0") }
@@ -61,6 +63,10 @@ Item {
     property string lastQueueTrack: ""
     Connections {
         target: session
+        function onLocalPlaybackReadyChanged() {
+            if (session.localPlaybackReady && rack.pollingActive && rack.musicBrowser && rack.musicBrowser.queueVisible && !session.queueItems.length)
+                session.refreshQueue(true)
+        }
         function onTrackChanged() {
             const identity = session.track.url || session.track.title || ""
             if (identity === rack.lastQueueTrack) return
@@ -129,21 +135,25 @@ Item {
                     Rectangle {
                         Layout.preferredWidth: 62; Layout.preferredHeight: 62; color: "#172819"
                         Text { anchors.centerIn: parent; text: "♫"; color: "#c3e2a0"; font.pixelSize: 32; visible: artwork.status !== Image.Ready }
-                        Image { id: artwork; anchors.fill: parent; source: session.track.art || ""; cache: false; fillMode: Image.PreserveAspectFit; asynchronous: true }
+                        Image { id: artwork; anchors.fill: parent; source: rack.displayTrack.art || ""; cache: false; fillMode: Image.PreserveAspectFit; asynchronous: true }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; Layout.minimumWidth: 0; spacing: 3
-                        SpotifyAttribution { targetUrl: session.track.url || "https://open.spotify.com/" }
-                        Text { objectName: "playerTrackTitle"; Layout.fillWidth: true; text: session.track.title || qsTr("Your music, your way"); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.pixelSize: 16; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; maximumLineCount: 1; elide: Text.ElideRight }
-                        Text { objectName: "playerTrackArtist"; Layout.fillWidth: true; text: session.track.artist || (session.authorized ? (session.integratedPlayback ? qsTr("Choose a track in Search or Library") : qsTr("Start playing in Spotify")) : qsTr("Connect Spotify in Settings")); color: "#89b86d"; font.pixelSize: 11; maximumLineCount: 1; elide: Text.ElideRight }
-                        Text { objectName: "playerTrackTime"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: rack.time(session.track.position || 0) + " / " + rack.time(session.track.duration || 0); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 25; fontSizeMode: Text.HorizontalFit; minimumPixelSize: 16; maximumLineCount: 1 }
+                        SpotifyAttribution { targetUrl: rack.displayTrack.url || "https://open.spotify.com/" }
+                        MarqueeTitle {
+                            objectName: "playerTrackTitle"; Layout.fillWidth: true
+                            text: rack.displayTrack.title || qsTr("Your music, your way")
+                            reducedMotion: rack.reducedMotion
+                        }
+                        Text { objectName: "playerTrackArtist"; Layout.fillWidth: true; text: rack.displayTrack.artist || (session.authorized ? (session.integratedPlayback ? qsTr("Choose a track in Search or Library") : qsTr("Start playing in Spotify")) : qsTr("Connect Spotify in Settings")); color: "#89b86d"; font.pixelSize: 11; maximumLineCount: 1; elide: Text.ElideRight }
+                        Text { objectName: "playerTrackTime"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: rack.time(rack.displayTrack.position || 0) + " / " + rack.time(rack.displayTrack.duration || 0); color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 25; fontSizeMode: Text.HorizontalFit; minimumPixelSize: 16; maximumLineCount: 1 }
                     }
                 }
             }
             RackSlider {
-                Layout.fillWidth: true; implicitHeight: 20; from: 0; to: Math.max(1, session.track.duration || 0)
+                Layout.fillWidth: true; implicitHeight: 20; from: 0; to: Math.max(1, rack.displayTrack.duration || 0)
                 enabled: session.track.canSeek && !session.busy; Accessible.name: qsTr("Playback position")
-                remoteValue: session.track.position || 0
+                remoteValue: rack.displayTrack.position || 0
                 onValueCommitted: function(nextValue) { session.seek(Math.round(nextValue)) }
             }
             RowLayout {
@@ -154,7 +164,15 @@ Item {
                 Item { Layout.fillWidth: true }
                 RackButton { text: "⤨"; description: qsTr("Shuffle"); lit: session.track.shuffle || false; enabled: session.track.canShuffle && !session.busy; onClicked: session.toggleShuffle() }
                 RackButton { text: session.track.repeat === "track" ? "↻¹" : "↻"; description: qsTr("Repeat"); lit: session.track.repeat !== "off"; enabled: session.track.canRepeat && !session.busy; onClicked: session.cycleRepeat() }
-                RackButton { text: "↗"; description: qsTr("Open in Spotify"); enabled: !!session.track.url; onClicked: Qt.openUrlExternally(session.track.url) }
+                RackButton {
+                    objectName: "favoriteTrackButton"
+                    text: session.favoriteSaved ? "♥" : "♡"; lit: session.favoriteSaved
+                    description: session.favoriteNeedsConsent ? qsTr("Reconnect Spotify to edit liked songs")
+                        : session.favoriteSaved ? qsTr("Remove from liked songs") : qsTr("Add to liked songs")
+                    enabled: session.favoriteAvailable && !session.busy && !session.rateLimited
+                    onClicked: session.toggleFavorite()
+                }
+                RackButton { text: "↗"; description: qsTr("Open in Spotify"); enabled: !!rack.displayTrack.url; onClicked: Qt.openUrlExternally(rack.displayTrack.url) }
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -167,7 +185,7 @@ Item {
                 }
                 Text { text: Math.round(volumeSlider.value) + "%"; color: "#c8d6b6"; font.pixelSize: 11 }
             }
-            Text { Layout.fillWidth: true; text: session.rateLimited ? session.rateLimitMessage : session.error || (session.integratedPlayback && webPlayback.error ? webPlayback.error : session.track.device || (session.authorized && session.integratedPlayback ? webPlayback.status : session.status)); color: session.rateLimited || session.error || (session.integratedPlayback && webPlayback.error) ? "#f0b99a" : "#a6b49b"; font.pixelSize: 10; maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight }
+            Text { Layout.fillWidth: true; text: session.rateLimited ? session.rateLimitMessage : session.error || (session.integratedPlayback && webPlayback.error ? webPlayback.error : (rack.displayTrack.savedResume ? qsTr("Last played") : session.track.device) || (session.authorized && session.integratedPlayback ? webPlayback.status : session.status)); color: session.rateLimited || session.error || (session.integratedPlayback && webPlayback.error) ? "#f0b99a" : "#a6b49b"; font.pixelSize: 10; maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight }
         }
     }
     Component {
@@ -197,6 +215,7 @@ Item {
         MusicBrowser {
             id: browserView
             spotify: session; navigationState: rack.browserNavigation
+            onPageChanged: if (ready) settingsStore.write("desktop/musicPage", page)
             Component.onCompleted: rack.musicBrowser = browserView
             Component.onDestruction: if (rack.musicBrowser === browserView) rack.musicBrowser = null
         }
