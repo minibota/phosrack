@@ -14,6 +14,9 @@ TestCase {
         property var waveform: [0.1, -0.2, 0.3, -0.1]
         property real level: 0.1
         property bool running: true
+        property var pitchClasses: []
+        property int chordRoot: -1
+        property bool minorChord: false
         signal frameReady()
     }
     Component { id: component; Rack.LiveCanvas { analyzer: audio } }
@@ -21,6 +24,7 @@ TestCase {
         audio.bands = [0.2, 0.4, 0.6, 0.3]
         audio.waveform = [0.1, -0.2, 0.3, -0.1]
         audio.level = 0.1; audio.running = true
+        audio.pitchClasses = []; audio.chordRoot = -1; audio.minorChord = false
     }
     function test_largeViewportHasBoundedPhysicalBacking() {
         const view = createTemporaryObject(component, suite, {width: 3840, height: 2160})
@@ -56,6 +60,27 @@ TestCase {
         verify(view)
         audio.frameReady();wait(80)
         compare(view.phase, 0)
+    }
+    function test_gridReactsToSpectrumFrames() {
+        audio.bands = Array(48).fill(0)
+        const view = createTemporaryObject(component, suite, {width: 450, height: 142, effect: "grid"})
+        wait(100)
+        const before = grabImage(view)
+        audio.bands = Array(48).fill(0)
+        audio.bands[47] = 1
+        audio.frameReady()
+        tryVerify(() => !grabImage(view).equals(before))
+    }
+    function test_harmonicDisplayUsesEstimateWhenAvailable() {
+        const view = createTemporaryObject(component, suite, {width: 450, height: 142, effect: "notes"})
+        tryVerify(() => !!findChild(view, "estimatedChord"))
+        const chord = findChild(view, "estimatedChord")
+        compare(chord.text, "—")
+        audio.pitchClasses = [1, 0, 0, 0, 0.8, 0, 0, 0.7, 0, 0, 0, 0]
+        audio.chordRoot = 0
+        compare(chord.text, "C major")
+        audio.chordRoot = -1
+        compare(chord.text, "—")
     }
     function test_ambientDoesNotReactToCapturedAudio() {
         const view = createTemporaryObject(component, suite, {width: 450, height: 108, ambient: true, animationActive: false})

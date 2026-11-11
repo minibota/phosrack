@@ -6,15 +6,13 @@ ColumnLayout {
     id: panel
     property var equalizer
     property var preferences
-    property bool available: true
-    signal localToolsRequested()
     spacing: 3
     function remember() {
         response.requestPaint()
     }
     RowLayout {
         Layout.fillWidth: true; spacing: 5
-        RackButton { text: equalizer.enabled ? qsTr("ON") : qsTr("OFF"); lit: equalizer.enabled; implicitWidth: 43; implicitHeight: 22; description: qsTr("Enable local equalizer"); enabled: panel.available; onClicked: equalizer.enabled = !equalizer.enabled }
+        RackButton { text: equalizer.enabled ? qsTr("ON") : qsTr("OFF"); lit: equalizer.enabled; implicitWidth: 43; implicitHeight: 22; description: qsTr("Enable local equalizer"); onClicked: equalizer.enabled = !equalizer.enabled }
         Text { text: qsTr("10 BAND · LOCAL DSP"); color: "#a9b5a2"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 9; Layout.fillWidth: true }
         ComboBox {
             id: presetPicker; Layout.preferredWidth: 126; implicitHeight: 23
@@ -74,7 +72,7 @@ ColumnLayout {
         }
     }
     Text {
-        Layout.fillWidth: true; text: !panel.available ? qsTr("For non-Spotify audio only · open Local audio tools in Settings") : equalizer.error || (equalizer.enabled ? equalizer.status : qsTr("Local audio · bypassed"))
+        Layout.fillWidth: true; text: equalizer.error || (equalizer.enabled ? equalizer.status : qsTr("Local audio · bypassed"))
         color: equalizer.error ? "#edac7b" : "#9aa58f"; font.pixelSize: 9
         wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
     }

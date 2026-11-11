@@ -133,7 +133,7 @@ AudioAnalyzer::AudioAnalyzer(QObject *parent):QObject(parent),m_status(tr("Visua
             setStatus(tr("Audio capture unavailable. Check PipeWire and pw-cat."));}
     });
     connect(&m_capture,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,[this](int,QProcess::ExitStatus){
-        m_frames.stop();m_level=0;m_ring.fill(0);m_bands.fill(0.);m_wave.fill(0.);emit frameReady();
+        m_frames.stop();m_level=0;m_history={};m_bands.fill(0.);m_wave.fill(0.);resetPitch();emit frameReady();
         if(m_requested){m_requested=false;setStatus(tr("Audio output disconnected"));}
         else emit changed();
     });
@@ -215,7 +215,7 @@ void AudioAnalyzer::startCapture() {
        m_capture.state()!=QProcess::NotRunning)return;
     const auto binary=QStandardPaths::findExecutable("pw-cat");
     if(binary.isEmpty()){setStatus(tr("PipeWire tools are unavailable"));return;}
-    m_ring.fill(0);m_pending.clear();m_write=m_fresh=0;m_requested=true;
+    m_history={};m_pending.clear();m_requested=true;
     // Pin monitor ports to the resolved sink. Discovery follows route changes;
     // PipeWire must never reconnect this stream to an input or an arbitrary node.
     m_capture.start(binary,{"--record","--raw","--format=f32","--rate=48000","--channels=2","--latency=50ms",
@@ -228,7 +228,7 @@ void AudioAnalyzer::stopCapture() {
     if(m_capture.state()!=QProcess::NotRunning){
         m_capture.terminate();if(!m_capture.waitForFinished(400)){m_capture.kill();m_capture.waitForFinished(400);}
     }
-    m_pending.clear();m_ring.fill(0);m_bands.fill(0.);m_wave.fill(0.);m_level=0;
+    m_pending.clear();m_history={};m_bands.fill(0.);m_wave.fill(0.);m_level=0;resetPitch();
     emit changed();emit frameReady();
 }
 
@@ -236,22 +236,18 @@ void AudioAnalyzer::consume() {
     m_pending+=m_capture.readAllStandardOutput();
     const int complete=int(m_pending.size()/8)*8;
     // Retain recent complete stereo frames if the UI was suspended.
-    const int begin=std::max(0,complete-Phosrack::FftSize*8);
+    const int begin=std::max(0,complete-Phosrack::PitchFftSize*8);
     for(int i=begin;i<complete;i+=8){
         float l=0,r=0;std::memcpy(&l,m_pending.constData()+i,4);std::memcpy(&r,m_pending.constData()+i+4,4);
         float x=(l+r)*.5f;if(!std::isfinite(x))x=0;
-        m_ring[m_write]=std::clamp(x,-1.f,1.f);m_write=(m_write+1)%Phosrack::FftSize;++m_fresh;
+        m_history.append(std::clamp(x,-1.f,1.f));
     }
     m_pending.remove(0,complete);
 }
 
-void AudioAnalyzer::updateFrame() {
-    std::array<float,Phosrack::FftSize> samples{};
-    if(m_fresh>0)for(int i=0;i<Phosrack::FftSize;++i)samples[i]=m_ring[(m_write+i)%Phosrack::FftSize];
-    m_fresh=0;
-    const auto frame=Phosrack::analyze(samples);m_level=frame.rms;
-    for(int i=0;i<Phosrack::BandCount;++i)m_bands[i]=std::max(double(frame.bands[i]),m_bands[i].toDouble()*.84);
-    for(int i=0;i<128;++i)m_wave[i]=frame.wave[i];
-    setStatus(m_level>.0005?tr("Live local audio"):tr("No signal on this output"));
-    emit frameReady();
+bool AudioAnalyzer::readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch) {
+    if (!m_history.takeFresh()) return false;
+    m_history.copyRecent(samples);
+    if (pitch) m_history.copyRecent(*pitch);
+    return true;
 }

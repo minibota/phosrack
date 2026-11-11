@@ -39,12 +39,8 @@ may have their own settings or logs.
 
 ## Local audio tools
 
-In Spotify mode, Phosrack does not monitor the system output or apply its EQ.
-The separate Local audio tools mode is for non-Spotify audio and suspends your Spotify session
-in Phosrack. It keeps the saved sign-in for returning to Spotify mode. Stop Spotify in other apps as well.
-
 While the local visualizer is visible, it receives sound from the selected computer
-output. That can include other apps and notifications; it cannot identify every
+output, including during Spotify playback. That can include other apps and notifications; it cannot identify every
 source in the mix. Audio samples are processed in memory and are not saved or
 uploaded. Folding or hiding the visualizer, or minimizing its last visible window,
 stops monitoring. EQ applies only when you enable the local tool. Windows Equalizer

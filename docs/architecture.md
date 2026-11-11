@@ -1,6 +1,6 @@
 # Architecture
 
-Phosrack 0.3.3 is a standalone QML + C++ Qt application. The executable registers
+Phosrack 0.3.4 is a standalone QML + C++ Qt application. The executable registers
 SpotifyClient, AudioAnalyzer, Equalizer and Preferences as the Phosrack QML module.
 App.qml, rack components, catalogs, icon and the SDK bridge page are embedded Qt
 resources. The installed application needs no source checkout or machine-wide QML
@@ -19,8 +19,7 @@ there is no outer scrolling rack.
 
 SettingsDialog.qml provides personal Spotify application setup, Connect Spotify,
 playback mode, DRM status/module selection, output override, motion preference and
-external Spotify device transfer. A separate Local audio tools mode requires an
-explicit non-Spotify-audio acknowledgement and suspends the Spotify session.
+external Spotify device transfer.
 English, Spanish and French use QLocale's first
 system UI language, English qsTr()/tr() source strings and embedded JSON catalogs via
 QTranslator. Unsupported or missing system language preferences fall back to English.
@@ -62,7 +61,6 @@ browser. The callback returns a localized, self-contained HTML page for receipt,
 denial or invalid/expired authorization. It does not reflect codes or tokens.
 Explicit Disconnect records a persistent sign-out choice before requesting removal
 of the saved sign-in. Failed deletion is reported and cannot cause automatic reuse.
-Local audio tools only suspend the current session.
 
 ## Integrated playback
 
@@ -91,20 +89,13 @@ PlaybackRuntime configures an existing compatible Widevine module before WebEngi
 initialization. It detects common Chrome locations or uses an explicitly selected
 module path. Changing that setting requires restart. Widevine is neither bundled nor
 downloaded, and runtime compatibility depends on the platform's WebEngine/codecs/CDM.
-See the [versioned validation record](validation-0.3.3.md) for actual platform results.
+See the [versioned validation record](validation-0.3.4.md) for actual platform results.
 
 ## Local audio and equalization
 
-Spotify mode sets the analyzer inactive and makes the EQ unavailable. `LiveCanvas`
-renders ambient phosphor effects without using monitored samples. Fullscreen can
-show actual Spotify metadata; its animation is not synchronized to sound.
-
-Local audio tools require explicit user acknowledgement and suspend Spotify before
-enabling output capture or EQ. The fullscreen Spotify overlay is suppressed in this
-mode. Returning to Spotify disables the EQ first; a failed Windows APO bypass blocks
-connection. The monitor also requires an unauthorized, non-busy Spotify session.
-This separation cannot identify Spotify sound from unrelated apps on a mixed output;
-the user must stop such playback. See [policy scope](spotify-policy.md).
+The local analyzer and equalizer can run while Spotify is connected. Fullscreen
+shows Spotify metadata when available, while the visualizer reads the selected
+output's entire local mix. See [policy scope](spotify-policy.md).
 
 The Linux AudioAnalyzer resolves PipeWire's `default.audio.sink` metadata every two
 seconds while active. An empty source preference means automatic routing. Explicit
@@ -112,14 +103,16 @@ overrides use stable node names; each capture process is pinned to the current
 numeric output serial. Only Audio/Sink nodes are offered for capture. Folding the
 visualizer or hiding/minimizing its last visible window stops capture. Raw samples
 remain in a bounded memory buffer; a Hann-window FFT feeds 48 bands, waveform and
-reactive ribbons. Native route discovery and capture use fixed commands without a shell.
+reactive ribbons and the 8 × 6 grid. Notes mode alone runs an additional 8,192-sample
+FFT for pitch classes and probable major or minor triads. It smooths pitch estimates
+and requires consecutive chord matches before displaying a label. Native route
+discovery and capture use fixed commands without a shell.
 
 On Linux, phosrack-eq-worker owns a virtual PipeWire input and physical output stream
 and performs the ten-band biquad DSP locally. The parent controls gains over private
 stdin; it does not modify a foreign node, restart streams for each change or require
 a manager permission. Output is pinned before exposing the virtual sink. Users route
-the non-Spotify sound-producing application to Phosrack EQ. This tool is not
-available to process integrated Spotify playback.
+the application they want to equalize to Phosrack EQ.
 
 Windows selects audioanalyzer_windows.cpp for WASAPI loopback and
 equalizer_windows.cpp for optional Equalizer APO configuration. Shared monitorformat.h

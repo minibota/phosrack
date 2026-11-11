@@ -82,8 +82,7 @@ struct AudioAnalyzer::WindowsCapture {
     std::thread thread;
     std::atomic<bool> stop{false},running{false},starting{false};
     std::mutex mutex;
-    std::array<float,Phosrack::FftSize> ring{};
-    unsigned write=0,fresh=0;
+    Phosrack::AudioHistory history;
     int generation=0;
 };
 
@@ -167,7 +166,7 @@ void AudioAnalyzer::startCapture() {
             m_windows->running=false;m_windows->starting=false;
             if(failed)QMetaObject::invokeMethod(this,[this,generation]{
                 if(generation!=m_windows->generation||!m_active)return;
-                m_frames.stop();setStatus(tr("Windows audio capture is unavailable."));emit changed();
+                stopCapture();setStatus(tr("Windows audio capture is unavailable."));
             },Qt::QueuedConnection);
         };
         ComApartment apartment(COINIT_MULTITHREADED);
@@ -231,11 +230,8 @@ void AudioAnalyzer::startCapture() {
                 capture->ReleaseBuffer(packetFrames);
                 {
                     std::lock_guard<std::mutex> lock(m_windows->mutex);
-                    for(float sample:mono) {
-                        m_windows->ring[m_windows->write]=sample;
-                        m_windows->write=(m_windows->write+1)%Phosrack::FftSize;
-                    }
-                    m_windows->fresh=std::min(unsigned(Phosrack::FftSize),m_windows->fresh+unsigned(mono.size()));
+                    for(float sample:mono)
+                        m_windows->history.append(sample);
                 }
                 if(FAILED(capture->GetNextPacketSize(&frames))){failed=true;break;}
             }
@@ -251,20 +247,14 @@ void AudioAnalyzer::stopCapture() {
     m_windows->running=false;m_windows->starting=false;
     {
         std::lock_guard<std::mutex> lock(m_windows->mutex);
-        m_windows->ring.fill(0);m_windows->write=m_windows->fresh=0;
+        m_windows->history={};
     }
-    m_level=0;m_bands.fill(0.);m_wave.fill(0.);emit changed();emit frameReady();
+    m_level=0;m_bands.fill(0.);m_wave.fill(0.);resetPitch();emit changed();emit frameReady();
 }
-void AudioAnalyzer::updateFrame() {
-    std::array<float,Phosrack::FftSize> samples{};
-    {
-        std::lock_guard<std::mutex> lock(m_windows->mutex);
-        if(m_windows->fresh)for(int i=0;i<Phosrack::FftSize;++i)
-            samples[i]=m_windows->ring[(m_windows->write+unsigned(i))%Phosrack::FftSize];
-        m_windows->fresh=0;
-    }
-    const auto result=Phosrack::analyze(samples);m_level=result.rms;
-    for(int i=0;i<Phosrack::BandCount;++i)m_bands[i]=std::max(double(result.bands[i]),m_bands[i].toDouble()*.84);
-    for(int i=0;i<128;++i)m_wave[i]=result.wave[i];
-    setStatus(m_level>.0005?tr("Live local audio"):tr("No signal on this output"));emit frameReady();
+bool AudioAnalyzer::readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch) {
+    std::lock_guard<std::mutex> lock(m_windows->mutex);
+    if (!m_windows->history.takeFresh()) return false;
+    m_windows->history.copyRecent(samples);
+    if (pitch) m_windows->history.copyRecent(*pitch);
+    return true;
 }

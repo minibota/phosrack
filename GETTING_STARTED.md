@@ -1,8 +1,7 @@
 # Getting started with Phosrack
 
 Phosrack is a QML + C++ desktop music rack with integrated Spotify playback, search,
-queue and fullscreen ambient visuals. Separate local audio tools provide an
-equalizer and reactive visuals for non-Spotify sound. The interface follows
+queue, a ten-band equalizer and fullscreen audio-reactive visuals. The interface follows
 the system language (English, Spanish or French); unsupported languages use English.
 
 ## Install a development package
@@ -11,10 +10,10 @@ Read the [privacy notice](PRIVACY.md) and [Spotify integration terms](TERMS.md)
 before connecting Spotify.
 
 Download an installer from the
-[v0.3.3 release](https://github.com/minibota/phosrack/releases/tag/v0.3.3). The
-[versioned package index](releases/v0.3.3/) contains download links and checksums.
+[v0.3.4 release](https://github.com/minibota/phosrack/releases/tag/v0.3.4). The
+[versioned package index](releases/v0.3.4/) contains download links and checksums.
 Choose the package for your operating system and CPU architecture. See the
-[0.3.3 validation notes](docs/validation-0.3.3.md) for completed checks and remaining
+[0.3.4 validation notes](docs/validation-0.3.4.md) for completed checks and remaining
 platform limitations.
 
 - Fedora 45 x86_64: install the RPM after its runtime dependencies.
@@ -27,15 +26,15 @@ Local development RPMs are unsigned. On Fedora 45, install the signed runtime
 dependencies, then use a per-command digest check without changing global policy:
 
     sudo dnf install qt6-qtdeclarative qt6-qtsvg qt6-qtwayland qt6-qtwebengine qt6-qtwebchannel kf6-kwallet pipewire pipewire-libs pipewire-utils
-    sudo rpm --define '_pkgverify_level digest' -Uvh ./phosrack-0.3.3-1.fc45.x86_64.rpm
+    sudo rpm --define '_pkgverify_level digest' -Uvh ./phosrack-0.3.4-1.fc45.x86_64.rpm
 
 On Debian 13:
 
-    sudo apt install ./phosrack_0.3.3_amd64.deb
+    sudo apt install ./phosrack_0.3.4_amd64.deb
 
 For Flatpak (including updates to an existing user installation):
 
-    flatpak install --user --reinstall ./phosrack-0.3.3-x86_64.flatpak
+    flatpak install --user --reinstall ./phosrack-0.3.4-x86_64.flatpak
 
 See [docs/packaging.md](docs/packaging.md) for build instructions and dependencies.
 Installing Phosrack does not install Widevine or create a Spotify developer application.
@@ -43,7 +42,7 @@ Installing Phosrack does not install Widevine or create a Spotify developer appl
 ## Connect Spotify
 
 You need **Spotify Premium** and your own Spotify developer application's public
-**Client ID**. This is a one-time setup; Phosrack remembers your ID. v0.3.3 has no
+**Client ID**. This is a one-time setup; Phosrack remembers your ID. v0.3.4 has no
 shared default ID.
 
 1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
@@ -122,31 +121,28 @@ requests, but cannot guarantee that Spotify will never apply a limit. See the
 
 ## Local audio tools and equalizer
 
-Spotify mode uses ambient animation and leaves Phosrack's audio monitor and EQ off.
-To process **non-Spotify audio**, open **Local audio tools** in Settings. This
-separate mode suspends Spotify in Phosrack and asks you to confirm that the sound
-is not Spotify content. Your saved sign-in is kept for returning to Spotify mode. Stop Spotify in other apps too; all sound on the selected
-output may reach the tools.
+The equalizer and visualizer can run alongside Spotify playback. The visualizer
+reacts to the full mix on the selected local output.
 
 Choose a preset or edit the ten bands and preamp. Boosting bands can distort loud
 audio; reduce the preamp to leave headroom.
 
-On Linux, enable EQ and select **Phosrack EQ** as the output for your non-Spotify
+On Linux, enable EQ and select **Phosrack EQ** as the output for your
 audio app in the system sound settings. Phosrack creates a temporary processing
 output and does not reroute apps or change the system default. Disabling EQ or
 closing Phosrack removes that output.
 
 Windows uses the optional Equalizer APO integration described in the application
 and [Windows guide](docs/windows.md). Install and configure Equalizer APO for your
-playback device separately; it is not bundled. Returning to Spotify mode stops
-Phosrack's monitoring and disables its own EQ configuration.
+playback device separately. Phosrack disables its filters when you turn off the EQ.
 
 ## Visualizer and fullscreen
 
-In Spotify mode, the fullscreen view shows ambient phosphor animation, with the
-current and next song when available. It does not analyze or synchronize to Spotify
-audio. In Local audio tools, the visualizer reacts to the selected computer output
-and has no Spotify song overlay. It cannot hear sound from remote devices.
+The fullscreen view can show the current Spotify song and the next track when
+one is queued. The visualizer reacts to the selected computer output. Choose the
+8 × 6 phosphor grid or the notes and chords display in the visualizer panel.
+The chord label is an estimate and stays blank when the signal is ambiguous.
+The visualizer cannot hear sound from remote playback devices.
 
 Output selection and reduced motion are in Settings. Hiding or folding the local
 visualizer, or minimizing its last visible window, stops analysis. Integrated

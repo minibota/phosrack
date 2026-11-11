@@ -19,9 +19,8 @@ remain controlled by Spotify. Do not rotate credentials to evade a restriction.
 Do not modify or create derivative works of the Spotify platform, service or
 content. Do not decompile, reverse-engineer, disassemble or otherwise reduce those
 Spotify materials to source code or another human-perceivable form, except where
-applicable law permits it. Do not record, download, redistribute, analyze or
-synchronize Spotify content through Phosrack's local audio tools. Those tools are
-for non-Spotify sound you are entitled to process.
+applicable law permits it. Use the local equalizer and visualizer only with audio
+you are entitled to process, in accordance with applicable service terms.
 
 These restrictions concern Spotify's platform, service and content. They do not
 restrict your rights to use, inspect, modify or redistribute Phosrack's own code

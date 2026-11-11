@@ -18,7 +18,6 @@ Window {
     readonly property string nextSpotifyUrl: spotifyUrl(nextTrack)
     property string observedTrackIdentity: ""
     property bool wasAuthorized: false
-    property bool queueRefreshPending: false
     property bool chromeVisible: true
 
     visible: false
@@ -38,7 +37,6 @@ Window {
     }
     function refreshQueue() {
         if (!presentationActive || !spotify || !spotify.authorized) return
-        queueRefreshPending = true
         spotify.refreshQueue()
     }
     function showChrome() {
@@ -60,7 +58,6 @@ Window {
         } else {
             queueDelay.stop()
             chromeTimer.stop()
-            queueRefreshPending = false
         }
     }
     onCurrentTrackChanged: {
@@ -71,10 +68,6 @@ Window {
     }
     Connections {
         target: fullscreen.spotify
-        function onQueueChanged() { fullscreen.queueRefreshPending = false }
-        function onCollectionsChanged() {
-            if (!fullscreen.spotify.collectionBusy) fullscreen.queueRefreshPending = false
-        }
         function onSessionChanged() {
             const authorized = fullscreen.spotify.authorized
             if (authorized && !fullscreen.wasAuthorized) fullscreen.refreshQueue()
@@ -134,13 +127,13 @@ Window {
         RowLayout {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
             anchors.margins: 22; spacing: 10
-            opacity: fullscreen.chromeVisible ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: fullscreen.reducedMotion ? 0 : 250 } }
             Text { text: "PHOSRACK"; color: "#baff74"; style: Text.Outline; styleColor: "#27451b"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 15; font.letterSpacing: 3 }
             SpotifyAttribution { visible: !!fullscreen.spotify && fullscreen.spotify.authorized; targetUrl: fullscreen.currentSpotifyUrl || "https://open.spotify.com/" }
             Item { Layout.fillWidth: true }
             RackButton {
                 id: exitButton
+                opacity: fullscreen.chromeVisible ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: fullscreen.reducedMotion ? 0 : 250 } }
                 objectName: "exitFullscreenButton"
                 text: "Esc  ⤡"; description: qsTr("Exit full screen (Esc)")
                 implicitWidth: 88; implicitHeight: 36
@@ -150,12 +143,13 @@ Window {
             }
         }
         Rectangle {
+            visible: songOverlay.visible
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             height: songOverlay.height + 100
             gradient: Gradient {
                 GradientStop { position: 0; color: "#00070c12" }
-                GradientStop { position: 0.55; color: "#b9070c12" }
-                GradientStop { position: 1; color: "#ed070c12" }
+                GradientStop { position: 0.55; color: "#66070c12" }
+                GradientStop { position: 1; color: "#a6070c12" }
             }
         }
         GridLayout {
@@ -164,10 +158,8 @@ Window {
             objectName: "songInfoOverlay"
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             anchors.margins: Math.min(32, fullscreen.width * 0.035)
-            columns: width < 700 ? 1 : 2
+            columns: width < 700 || !fullscreen.nextTrack.title ? 1 : 2
             columnSpacing: 42; rowSpacing: 20
-            opacity: fullscreen.chromeVisible ? 1 : 0.80
-            Behavior on opacity { NumberAnimation { duration: fullscreen.reducedMotion ? 0 : 350 } }
             RowLayout {
                 Layout.fillWidth: true; spacing: 16
                 Rectangle {
@@ -197,6 +189,7 @@ Window {
                 }
             }
             RowLayout {
+                visible: !!fullscreen.nextTrack.title
                 Layout.fillWidth: true; spacing: 13
                 Rectangle {
                     Layout.preferredWidth: 54; Layout.preferredHeight: 54
@@ -214,7 +207,7 @@ Window {
                     Text {
                         objectName: "nextSongTitle"
                         Layout.fillWidth: true
-                        text: fullscreen.nextTrack.title || (fullscreen.queueRefreshPending ? qsTr("Loading queue…") : qsTr("Next track unavailable"))
+                        text: fullscreen.nextTrack.title || ""
                         color: "#b1d399"; style: Text.Outline; styleColor: "#203519"; font.pixelSize: fullscreen.width < 700 ? 16 : 19
                         maximumLineCount: 2; wrapMode: Text.Wrap; elide: Text.ElideRight
                     }

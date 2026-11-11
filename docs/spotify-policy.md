@@ -58,18 +58,13 @@ The [Developer Policy, III](https://developer.spotify.com/policy) also restricts
 content analysis. We found no explicit exception for a transient FFT or system EQ.
 The documents do not specifically adjudicate Phosrack's operating-system DSP.
 
-The conservative product boundary is therefore:
+Phosrack allows its local output equalizer and audio-reactive visualizer to run
+alongside Spotify playback. The equalizer applies user-selected filters, while
+the visualizer measures the selected system output in memory. That output can
+contain audio from multiple applications.
 
-- **Spotify mode:** no Phosrack output capture or EQ; phosphor animation is ambient,
-  not audio-driven. Song artwork and metadata remain part of the player.
-- **Local audio tools:** Spotify is suspended in Phosrack, and the user must
-  confirm use with non-Spotify sound. These tools have no Spotify fullscreen overlay.
-  Users must also stop Spotify in other apps: a mixed system output cannot establish
-  which content every application is playing.
-
-This separation reduces the known conflict; it is not a claim that every remaining
-feature has received permission. The core-experience and personal-credential
-questions above remain unresolved. Do not describe OS capture as a policy exemption.
+Spotify has yet to confirm how the restrictions apply to this implementation.
+The core-experience and personal-credential questions above remain unresolved.
 
 Content displays use Spotify's official monochrome logo, preserve artwork
 proportions without cropping or controls over the image, and link back to Spotify.

@@ -12,14 +12,18 @@
 namespace {
 double bounded(double x){return std::isfinite(x)?std::clamp(x,-12.0,12.0):0.0;}
 struct Preset {const char *id;std::array<double,10> gains;double preamp;};
-constexpr std::array<Preset,7> curves{{
+constexpr std::array<Preset,11> curves{{
     {"flat",{0,0,0,0,0,0,0,0,0,0},0},
     {"rock",{4,3,1,-1,-2,-1,1,3,4,3},-5},
     {"pop",{-1,1,3,4,3,0,-1,-1,0,1},-5},
     {"jazz",{3,2,0,1,-1,-1,0,1,3,4},-5},
     {"classical",{3,2,1,0,-2,-2,0,1,2,3},-4},
     {"bass",{8,6,4,2,0,0,0,0,0,0},-9},
-    {"vocal",{-3,-2,-1,0,2,4,4,2,0,-2},-5}
+    {"vocal",{-3,-2,-1,0,2,4,4,2,0,-2},-5},
+    {"electronic", {5,4,1,-2,-2,0,2,3,4,4},-6},
+    {"hiphop", {5,4,1,2,-1,-1,2,0,1,2},-6},
+    {"acoustic", {2,2,1,0,0,1,2,3,2,1},-4},
+    {"treble", {0,0,0,0,0,1,2,4,5,5},-6}
 }};
 bool writeFile(const QString &path,const QByteArray &data) {
     QSaveFile file(path);
@@ -47,7 +51,12 @@ QVariantList Equalizer::presets() const {
         QVariantMap{{"id","flat"},{"name",tr("Flat")}},QVariantMap{{"id","rock"},{"name",tr("Rock")}},
         QVariantMap{{"id","pop"},{"name",tr("Pop")}},QVariantMap{{"id","jazz"},{"name",tr("Jazz")}},
         QVariantMap{{"id","classical"},{"name",tr("Classical")}},QVariantMap{{"id","bass"},{"name",tr("Bass boost")}},
-        QVariantMap{{"id","vocal"},{"name",tr("Vocal")}},QVariantMap{{"id","custom"},{"name",tr("Custom")}}
+        QVariantMap{{"id","vocal"},{"name",tr("Vocal")}},
+        QVariantMap{{"id","electronic"},{"name",tr("Electronic")}},
+        QVariantMap{{"id","hiphop"},{"name",tr("Hip-hop")}},
+        QVariantMap{{"id","acoustic"},{"name",tr("Acoustic")}},
+        QVariantMap{{"id","treble"},{"name",tr("Treble boost")}},
+        QVariantMap{{"id","custom"},{"name",tr("Custom")}}
     };
 }
 void Equalizer::save(){

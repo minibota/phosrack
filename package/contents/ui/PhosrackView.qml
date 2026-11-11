@@ -8,6 +8,13 @@ Item {
     property bool pollingActive: visible
     property var panelOrder: ["player", "equalizer", "visualizer", "browser"]
     property string visualEffect: "orbit"
+    readonly property var visualEffects: [
+        {key: "orbit", icon: "◎", label: qsTr("Orbit")},
+        {key: "spectrum", icon: "▥", label: qsTr("Spectrum")},
+        {key: "scope", icon: "∿", label: qsTr("Oscilloscope")},
+        {key: "grid", icon: "▦", label: qsTr("Phosphor grid")},
+        {key: "notes", icon: "♫", label: qsTr("Notes and chords")}
+    ]
     property bool reducedMotion: false
     property bool visualizerFolded: settingsStore.read("desktop/folded/visualizer", false)
     property bool browserFolded: settingsStore.read("desktop/folded/browser", false)
@@ -15,11 +22,14 @@ Item {
     property var musicBrowser: null
     property bool consentRestoreOnly: false
     property bool termsAcceptedThisSession: false
-    property bool localAudioTools: false
-    readonly property bool localAudioAllowed: localAudioTools && !session.authorized && !session.busy
     SpotifyClient { id: session; objectName: "spotifySession"; active: rack.pollingActive || fullVisualizer.presentationActive }
-    Equalizer { id: equalizerBackend; objectName: "equalizerBackend"; permitted: rack.localAudioAllowed }
-    AudioAnalyzer { id: monitor; objectName: "audioMonitor"; active: rack.localAudioAllowed && ((rack.pollingActive && rack.visible && !rack.visualizerFolded) || fullVisualizer.presentationActive) }
+    Equalizer { id: equalizerBackend; objectName: "equalizerBackend" }
+    AudioAnalyzer {
+        id: monitor
+        objectName: "audioMonitor"
+        active: (rack.pollingActive && rack.visible && !rack.visualizerFolded) || fullVisualizer.presentationActive
+        pitchEnabled: rack.visualEffect === "notes"
+    }
     Preferences { id: settingsStore }
     Component.onCompleted: {
         monitor.source = settingsStore.read("desktop/audioSource", "")
@@ -29,7 +39,7 @@ Item {
             if (order.length === 4 && ["player", "equalizer", "visualizer", "browser"].every(k => order.indexOf(k) >= 0)) panelOrder = order
         } catch (e) {}
         const effect = settingsStore.read("desktop/visualEffect", "orbit")
-        if (["orbit", "spectrum", "scope"].indexOf(effect) >= 0) visualEffect = effect
+        if (visualEffects.some(entry => entry.key === effect)) visualEffect = effect
         reducedMotion = settingsStore.read("reducedMotion", false)
     }
     function time(ms) { const n = Math.max(0, Math.floor(ms / 1000)); return Math.floor(n / 60).toString().padStart(2, "0") + ":" + (n % 60).toString().padStart(2, "0") }
@@ -37,8 +47,6 @@ Item {
     function openVisualizer() { fullVisualizer.open(rack.Window.window.screen) }
     function closeVisualizer() { fullVisualizer.close() }
     function requestSpotifyConnection(restoreOnly) {
-        if (!equalizerBackend.ensureBypassed()) { settings.open(); return }
-        localAudioTools = false
         if (termsAcceptedThisSession || settingsStore.read("legal/acceptedVersion", "") === "2026-11-10") {
             if (restoreOnly) session.restoreSession()
             else session.connectSpotify()
@@ -46,11 +54,6 @@ Item {
             consentRestoreOnly = restoreOnly
             spotifyConsent.open()
         }
-    }
-    function requestLocalAudioTools() { localAudioConsent.open() }
-    function activateLocalAudioTools() {
-        session.suspendSession()
-        localAudioTools = true
     }
     function restoreSpotifySession() { requestSpotifyConnection(true) }
     function connectSpotify() { requestSpotifyConnection(false) }
@@ -170,14 +173,14 @@ Item {
     Component {
         id: visualComponent
         Rectangle {
-            implicitHeight: 108; color: "#080f13"; radius: 3; clip: true
-            LiveCanvas { anchors.fill: parent; visible: !fullVisualizer.presentationActive; ambient: !rack.localAudioAllowed; animationActive: rack.pollingActive; analyzer: monitor; effect: rack.visualEffect; reducedMotion: rack.reducedMotion }
-            Text { anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 5; text: rack.localAudioAllowed ? qsTr("LOCAL AUDIO") : qsTr("AMBIENT · NOT AUDIO REACTIVE"); color: "#93ad7b"; font.pixelSize: 8 }
+            implicitHeight: 142; color: "#080f13"; radius: 3; clip: true
+            LiveCanvas { anchors.fill: parent; visible: !fullVisualizer.presentationActive; animationActive: rack.pollingActive; analyzer: monitor; effect: rack.visualEffect; reducedMotion: rack.reducedMotion }
+            Text { anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 5; text: qsTr("LOCAL AUDIO"); color: "#93ad7b"; font.pixelSize: 8 }
             Row {
                 anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 5; spacing: 3
                 RackButton { text: "⛶"; chrome: true; description: qsTr("Full screen"); implicitWidth: 25; implicitHeight: 23; onClicked: rack.openVisualizer() }
                 Repeater {
-                    model: [{key:"orbit", icon:"◎", label:qsTr("Orbit")}, {key:"spectrum", icon:"▥", label:qsTr("Spectrum")}, {key:"scope", icon:"∿", label:qsTr("Oscilloscope")}]
+                    model: rack.visualEffects
                     delegate: RackButton {
                         required property var modelData
                         text: modelData.icon; chrome: true; description: modelData.label; implicitWidth: 25; implicitHeight: 23
@@ -188,7 +191,7 @@ Item {
             }
         }
     }
-    Component { id: equalizerComponent; EqualizerPanel { equalizer: equalizerBackend; preferences: settingsStore; available: rack.localAudioAllowed; onLocalToolsRequested: rack.requestLocalAudioTools() } }
+    Component { id: equalizerComponent; EqualizerPanel { equalizer: equalizerBackend; preferences: settingsStore } }
     Component {
         id: browserComponent
         MusicBrowser {
@@ -200,14 +203,12 @@ Item {
     }
     VisualizerFullscreen {
         id: fullVisualizer; objectName: "visualizerFullscreen"
-        analyzer: monitor; spotify: session; ambient: !rack.localAudioAllowed; effect: rack.visualEffect; reducedMotion: rack.reducedMotion
+        analyzer: monitor; spotify: session; effect: rack.visualEffect; reducedMotion: rack.reducedMotion
     }
     SettingsDialog {
         id: settings; spotify: session; audio: monitor; preferences: settingsStore; equalizer: equalizerBackend; reducedMotion: rack.reducedMotion
         playbackController: webPlayback; playbackRuntime: playbackEnvironment
         connectionHandler: function() { rack.connectSpotify() }
-        localAudioTools: rack.localAudioTools
-        onLocalToolsRequested: rack.requestLocalAudioTools()
         onMotionPreferenceChanged: function(reduced) { rack.reducedMotion = reduced; settingsStore.write("reducedMotion", reduced) }
     }
     ConnectionDialog {
@@ -215,7 +216,6 @@ Item {
         onSettingsRequested: rack.openSettings()
         onConnectRequested: rack.connectSpotify()
     }
-    LocalAudioDialog { id: localAudioConsent; onAccepted: rack.activateLocalAudioTools() }
     SpotifyConsentDialog {
         id: spotifyConsent
         onConsentAccepted: {

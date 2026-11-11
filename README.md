@@ -1,27 +1,26 @@
 # Phosrack
 
-[![Version 0.3.3](https://img.shields.io/badge/version-0.3.3-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.3)
+[![Version 0.3.4](https://img.shields.io/badge/version-0.3.4-bce982)](https://github.com/minibota/phosrack/releases/tag/v0.3.4)
 [![Linux build](https://github.com/minibota/phosrack/actions/workflows/build.yml/badge.svg?branch=main&label=Linux)](https://github.com/minibota/phosrack/actions/workflows/build.yml)
 [![Windows build](https://github.com/minibota/phosrack/actions/workflows/windows.yml/badge.svg?branch=main&label=Windows)](https://github.com/minibota/phosrack/actions/workflows/windows.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
-**0.3.3 · QML + C++ desktop music rack** · GPL-3.0-or-later
+**0.3.4 · QML + C++ desktop music rack** · GPL-3.0-or-later
 
 A compact music player inspired by the classic Winamp era. Arrange its panels your
 way and enjoy its green phosphor glow. Listen inside Phosrack or use it to control
-another Spotify player. Separate local audio tools provide an equalizer and reactive
-visuals for non-Spotify sound.
+another Spotify player. Use the local equalizer and reactive visuals without
+disconnecting from Spotify.
 
-[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.3) ·
+[Getting started](GETTING_STARTED.md) · [Installers](https://github.com/minibota/phosrack/releases/tag/v0.3.4) ·
 [Build and packaging](docs/packaging.md) · [Windows](docs/windows.md) ·
-[Validation](docs/validation-0.3.3.md) · [Privacy](PRIVACY.md) · [Terms](TERMS.md) · [Issues](https://github.com/minibota/phosrack/issues)
+[Validation](docs/validation-0.3.4.md) · [Privacy](PRIVACY.md) · [Terms](TERMS.md) · [Issues](https://github.com/minibota/phosrack/issues)
 
 ## Screenshot
 
 <img src="docs/images/phosrack-spotify.png" alt="Phosrack playing Spotify with the ten-band equalizer, live spectrum visualizer and playback queue" width="470">
 
-The Phosrack rack in English. This screenshot shows an earlier version; v0.3.3
-separates Spotify playback from the local equalizer and audio-reactive visuals.
+The Phosrack rack in English. This screenshot shows an earlier version.
 
 ## Features
 
@@ -30,11 +29,11 @@ separates Spotify playback from the local equalizer and audio-reactive visuals.
 - Album artwork, playback progress, volume, previous/next, shuffle and repeat.
 - Search for music, see what's coming next, and browse your saved tracks, albums
   and playlists.
-- Three phosphor visual styles and fullscreen, with reduced motion for calmer
-  effects. Spotify mode uses ambient animation and can show the current and next song.
-- Separate **Local audio tools** for non-Spotify sound: a reactive visualizer and
-  ten-band equalizer with Flat, Rock, Pop, Jazz, Classical, Bass boost and Vocal
-  presets. Keep your own custom settings.
+- Five audio-reactive phosphor effects, including an 8 × 6 grid and a display of
+  predominant notes and likely major or minor chords. Fullscreen can show the
+  current and next queued songs, and reduced motion is available.
+- Ten-band local equalizer with genre and tone presets, including Electronic,
+  Hip-hop, Acoustic and Treble boost. Keep your own custom settings.
 - English, Spanish and French, following your computer's language. Other languages
   use English.
 - Sign in through your browser after a one-time Spotify setup. Phosrack restores
@@ -78,14 +77,13 @@ A few things to know before installing:
   have been tested. Playback inside the Windows app is experimental: its included
   audio support has limitations, and listening tests are still pending. Use the
   other-player mode if music will not start. A complete Flatpak sign-in/listening
-  test is also pending. See [what has been tested](docs/validation-0.3.3.md) and
+  test is also pending. See [what has been tested](docs/validation-0.3.4.md) and
   [Qt's technical requirements](https://doc.qt.io/qt-6.8/qtwebengine-features.html#html5-drm).
 - **No offline listening or downloads.** Phosrack needs an internet connection
   to play Spotify music and browse your account.
-- **Spotify playback uses ambient visuals and no Phosrack EQ.** Audio-reactive
-  visuals and equalization are separate tools for non-Spotify audio. Opening them
-  suspends Spotify in Phosrack. They hear the whole selected computer output,
-  so stop Spotify in other apps too. See [Local audio](#local-audio).
+- **Audio effects run on your computer.** The visualizer reads the selected
+  output, which can contain sound from several apps. The equalizer only affects
+  audio routed through its configured local output. See [Local audio](#local-audio).
 - **Spotify can temporarily pause access.** Phosrack waits for the time Spotify
   requests, even after a restart. Development quotas are shared by applications
   owned by the same Spotify developer account. Another Client ID is not a reset.
@@ -105,7 +103,7 @@ Read the [privacy notice](PRIVACY.md) and [Spotify integration terms](TERMS.md)
 before connecting your account. Phosrack's source remains GPL-3.0-or-later.
 
 Download the file for your computer from the
-[v0.3.3 release](https://github.com/minibota/phosrack/releases/tag/v0.3.3):
+[v0.3.4 release](https://github.com/minibota/phosrack/releases/tag/v0.3.4):
 
 - **Windows 11:** choose the `.exe` installer. The `.zip` is a portable version:
   extract it into a folder and open `phosrack.exe`.
@@ -114,11 +112,11 @@ Download the file for your computer from the
 
 Already using the Flatpak? Run this command in the folder containing your download:
 
-    flatpak install --user --reinstall ./phosrack-0.3.3-x86_64.flatpak
+    flatpak install --user --reinstall ./phosrack-0.3.4-x86_64.flatpak
 
 The [getting started guide](GETTING_STARTED.md) has the installation commands,
 including the extra step Fedora needs for these unsigned packages. The
-[testing notes](docs/validation-0.3.3.md) explain which features have been checked
+[testing notes](docs/validation-0.3.4.md) explain which features have been checked
 on each platform.
 
 ## Spotify setup and scope
@@ -219,18 +217,12 @@ distribution/toolchain; Fedora binaries are not converted into Debian packages.
 
 ## Local audio
 
-**Spotify mode** keeps the phosphor look and fullscreen ambient animation without
-listening to the computer's output or applying Phosrack's equalizer. The fullscreen
-overlay can show the current and next Spotify song; the animation is not driven by
-the music.
-
-**Local audio tools** are for non-Spotify sound that you are entitled to analyze and
-process. Selecting this mode suspends Spotify in Phosrack and asks you to confirm
-that use. Your saved sign-in is kept for returning to Spotify mode. Stop Spotify in other applications too: Phosrack cannot identify every
-sound mixed into your speakers or headphones. Local fullscreen has no Spotify overlay.
+The equalizer and reactive visualizer can run alongside Spotify controls and
+playback. The fullscreen overlay shows the current Spotify track and the next
+track when the queue provides one. The visuals follow the selected local output.
 
 On Linux, enable the local equalizer and choose **Phosrack EQ** as the output for
-your non-Spotify audio application in system sound settings. Phosrack creates a
+your audio application in system sound settings. Phosrack creates a
 temporary output, and does not silently reroute applications or change the default.
 Disabling EQ or closing Phosrack removes that output. Reduce the preamp when boosting
 bands to avoid distortion.
@@ -257,6 +249,10 @@ Phosrack is independent of Spotify, Winamp, KDE and Microsoft.
 The repository is https://github.com/minibota/phosrack. Installers are attached to
 GitHub Releases; versioned release folders contain the download index and checksums.
 Large packages are kept out of Git history. Fully detachable rack panels remain future work.
+
+Apple Music support is a future possibility, with no release planned. We will
+revisit it if we find a sustainable way to cover the developer membership and
+can verify playback on Linux and Windows.
 
 ## Primary references
 

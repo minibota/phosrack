@@ -92,14 +92,10 @@ int main(int argc, char **argv) {
         auto *rack = window->findChild<QObject*>("rackView");
         auto *eq = window->findChild<Equalizer*>("equalizerBackend");
         auto *monitor = window->findChild<AudioAnalyzer*>("audioMonitor");
-        if (!rack || !eq || !monitor || monitor->active() || eq->enabled() || eq->permitted()) return 6;
-        // Exercise the actual QML mode boundary with test-mode backends: no
-        // system capture, driver changes, wallet access or Spotify requests.
-        QMetaObject::invokeMethod(rack, "activateLocalAudioTools");
-        if (!eq->permitted()) return 7;
+        if (!rack || !eq || !monitor || eq->enabled() || !eq->permitted()) return 6;
         eq->setEnabled(true);
         QMetaObject::invokeMethod(rack, "restoreSpotifySession");
-        if (eq->enabled() || eq->permitted() || monitor->active()) return 8;
+        if (!eq->enabled() || !eq->permitted()) return 8;
     }
     if (parser.isSet("settings")) QTimer::singleShot(150, &app, [&] {
         if (auto *rack = engine.rootObjects().first()->findChild<QObject*>("rackView"))

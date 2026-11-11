@@ -53,14 +53,15 @@ TestCase {
         tryCompare(view,"presentationActive",false)
     }
     function test_missingNextDoesNotInventData() {
-        playback.authorized = false
         playback.queueItems = []
         const view = createTemporaryObject(component, suite)
         verify(view)
         view.open()
         tryCompare(view, "presentationActive", true)
-        compare(findChild(view,"nextSongTitle").text,"Next track unavailable")
-        compare(playback.queueRequests,0)
+        verify(findChild(view,"songInfoOverlay").visible)
+        verify(!findChild(view,"nextSongTitle").visible)
+        playback.queueItems = [{title:"Next test track"}]
+        tryCompare(findChild(view,"nextSongTitle"), "visible", true)
         view.close()
     }
     function test_escapeLeavesFullscreen() {

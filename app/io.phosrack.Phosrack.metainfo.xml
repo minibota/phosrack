@@ -13,13 +13,19 @@
   <url type="bugtracker">https://github.com/minibota/phosrack/issues</url>
   <launchable type="desktop-id">io.phosrack.Phosrack.desktop</launchable>
   <description>
-    <p>Phosrack is a desktop music rack inspired by classic modular media players. Its compact interface offers Spotify playback, search, queue and library views with original ambient phosphor visuals. Separate local audio tools are available for non-Spotify sound.</p>
+    <p>Phosrack is a desktop music rack inspired by classic modular media players. Its compact interface offers Spotify playback, search, queue and library views with original audio-reactive phosphor visuals.</p>
     <p>Configure your own Spotify developer Client ID and authorize your Premium account in the browser. Integrated playback uses the official Web Playback SDK inside Qt WebEngine and requires a compatible existing Widevine module, which is not bundled. An external Spotify player mode is also available. Spotify's application-access restrictions still apply.</p>
-    <p>Spotify mode does not capture system audio or apply Phosrack EQ. The separate local tools suspend Spotify and provide a ten-band equalizer with editable presets and an audio-reactive visualizer. Spotify fullscreen can display current and upcoming track information over ambient animation.</p>
+    <p>The local tools provide a ten-band equalizer and five visual effects, including a phosphor grid and a display of predominant notes and probable chords. Fullscreen can show the current and next Spotify tracks.</p>
   </description>
   <categories><category>AudioVideo</category><category>Audio</category></categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.4" date="2026-11-11">
+      <description>
+        <p>Add an 8 by 6 phosphor grid, a notes and chords visualizer, and four equalizer presets.</p>
+        <p>Use the equalizer and reactive visuals alongside Spotify. Fullscreen keeps the header visible and shows the next track only when one is queued.</p>
+      </description>
+    </release>
     <release version="0.3.3" date="2026-11-10">
       <description>
         <p>Restore saved Spotify sessions on startup and show a clear sign-in prompt when browser authorization is needed.</p>

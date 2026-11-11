@@ -31,6 +31,10 @@ class AudioAnalyzer : public QObject {
     Q_PROPERTY(QVariantList bands READ bands NOTIFY frameReady)
     Q_PROPERTY(QVariantList waveform READ waveform NOTIFY frameReady)
     Q_PROPERTY(double level READ level NOTIFY frameReady)
+    Q_PROPERTY(bool pitchEnabled READ pitchEnabled WRITE setPitchEnabled NOTIFY changed)
+    Q_PROPERTY(QVariantList pitchClasses READ pitchClasses NOTIFY frameReady)
+    Q_PROPERTY(int chordRoot READ chordRoot NOTIFY frameReady)
+    Q_PROPERTY(bool minorChord READ minorChord NOTIFY frameReady)
 public:
     explicit AudioAnalyzer(QObject *parent=nullptr);
     ~AudioAnalyzer() override;
@@ -50,6 +54,11 @@ public:
     QVariantList bands() const {return m_bands;}
     QVariantList waveform() const {return m_wave;}
     double level() const {return m_level;}
+    bool pitchEnabled() const { return m_pitchEnabled; }
+    void setPitchEnabled(bool value);
+    QVariantList pitchClasses() const { return m_pitchClasses; }
+    int chordRoot() const { return m_chordRoot; }
+    bool minorChord() const { return m_minorChord; }
     Q_INVOKABLE void refreshSources();
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
@@ -63,6 +72,9 @@ private:
     void stopCapture();
     void consume();
     void updateFrame();
+    bool readAudioFrame(std::array<float, Phosrack::FftSize> &samples, Phosrack::PitchSamples *pitch);
+    void resetPitch();
+    void updatePitch(const Phosrack::PitchSamples &samples);
     void setStatus(const QString &value);
 #ifdef Q_OS_WIN
     struct WindowsCapture;
@@ -75,8 +87,13 @@ private:
     QString m_status,m_source,m_defaultSource,m_resolvedSource,m_outputName;
     QVariantList m_sources,m_bands,m_wave;
     QByteArray m_pending;
-    std::array<float,Phosrack::FftSize> m_ring{};
-    int m_write=0,m_fresh=0;
+#ifndef Q_OS_WIN
+    Phosrack::AudioHistory m_history;
+#endif
+    QVariantList m_pitchClasses;
+    Phosrack::PitchClasses m_previousPitch{};
+    int m_pitchCountdown=0,m_idleFrames=0,m_chordCandidate=-1,m_chordRoot=-1;
+    bool m_pitchEnabled=false,m_minorChord=false;
     double m_level=0;
     bool m_requested=false,m_active=false;
 };

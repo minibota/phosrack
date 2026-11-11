@@ -18,7 +18,7 @@ Item {
     property bool audioFramePending: false
     property double lastFrameTime: 0
     function requestPaint(audioFrame) {
-        if (!visible || !paintTimer) return
+        if (!visible || effect === "notes" || !paintTimer) return
         audioFramePending = audioFramePending || !!audioFrame
         if (!paintTimer.running) {
             paintTimer.interval = Math.max(1, 33 - (Date.now() - lastFrameTime))
@@ -35,6 +35,31 @@ Item {
             c.globalAlpha = opacity * 0.22; c.lineWidth = lineWidth + 3; c.stroke()
         }
         c.strokeStyle = color; c.globalAlpha = opacity; c.lineWidth = lineWidth; c.stroke()
+    }
+    function paintGrid(c, width, height, bands) {
+        const step = Math.min(width * 0.92 / 8, height * 0.71 / 6)
+        const gap = Math.min(7, step * 0.22)
+        const cellSize = step - gap
+        const left = (width - 8 * step + gap) / 2
+        const top = (height - 6 * step + gap) / 2 + Math.min(height * 0.05, 9)
+        const colors = ["#a7f0a8", "#a4ee87", "#c0f986", "#d8f396", "#b2ed90", "#8fe3ab"]
+        for (let row = 0; row < 6; ++row) {
+            for (let column = 0; column < 8; ++column) {
+                const level = Math.max(0, Math.min(1, bands[(5 - row) * 8 + column] || 0))
+                const x = left + column * step, y = top + row * step
+                c.fillStyle = "#11261e"; c.globalAlpha = 1
+                c.fillRect(x, y, cellSize, cellSize)
+                c.fillStyle = colors[row]
+                const halo = gap * 0.42
+                c.globalAlpha = level * 0.23
+                c.fillRect(x - halo, y - halo, cellSize + 2 * halo, cellSize + 2 * halo)
+                c.globalAlpha = Math.pow(level, 1.35) * 0.93
+                c.fillRect(x, y, cellSize, cellSize)
+                c.globalAlpha = level * 0.43
+                c.fillRect(x + 1, y + 1, Math.max(0, cellSize - 2), Math.min(cellSize, 2))
+            }
+        }
+        c.globalAlpha = 1
     }
     onAmbientChanged: requestPaint(false)
     onEffectChanged: requestPaint(false)
@@ -63,12 +88,13 @@ Item {
         onTriggered: { visual.phase += 0.015; visual.requestPaint(false) }
     }
     Connections {
-        target: visual.ambient ? null : visual.analyzer
+        target: visual.ambient || visual.effect === "notes" ? null : visual.analyzer
         function onFrameReady() { visual.requestPaint(true) }
     }
     Canvas {
         id: surface
         objectName: "visualizerSurface"
+        visible: visual.effect !== "notes"
         width: visual.backingWidth; height: visual.backingHeight
         smooth: true
         transform: Scale { xScale: visual.width / surface.width; yScale: visual.height / surface.height }
@@ -85,7 +111,9 @@ Item {
             const wave = visual.ambient ? Array.from({length: 128}, (_, i) => 0.3 * Math.sin(i * 0.12 + phase)) : analyzer.waveform
             const energy = visual.ambient ? 0.3 : Math.min(1, Math.sqrt(analyzer.level) * 1.8)
             const glowing = visual.ambient || analyzer.running
-            if (effect === "spectrum") {
+            if (effect === "grid") {
+                visual.paintGrid(c, width, height, bands)
+            } else if (effect === "spectrum") {
                 const step = (width - 24) / Math.max(1, bands.length)
                 const g = c.createLinearGradient(0, height, 0, 0)
                 g.addColorStop(0, "#72d49f"); g.addColorStop(0.65, "#d9e982"); g.addColorStop(1, "#f0ad75")
@@ -139,6 +167,14 @@ Item {
                 }
                 c.globalAlpha = 1
             }
+        }
+    }
+    Loader {
+        anchors.fill: parent
+        active: visual.visible && visual.effect === "notes"
+        sourceComponent: HarmonicDisplay {
+            analyzer: visual.ambient ? null : visual.analyzer
+            reducedMotion: visual.reducedMotion
         }
     }
 }

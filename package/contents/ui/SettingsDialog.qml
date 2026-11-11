@@ -12,8 +12,6 @@ Dialog {
     property var playbackController: null
     property var playbackRuntime: null
     property var connectionHandler: null
-    property bool localAudioTools: false
-    signal localToolsRequested()
     property bool reducedMotion: false
     property bool advancedSpotifyExpanded: false
     property bool clientDraftModified: false
@@ -66,10 +64,6 @@ Dialog {
         ScrollBar.vertical: RackScrollBar {}
         ColumnLayout {
             width: settingsScroll.availableWidth; spacing: 10
-            RowLayout {
-                Layout.fillWidth: true
-                RackButton { text: settings.localAudioTools ? qsTr("Return to Spotify") : qsTr("Local audio tools…"); onClicked: { settings.close(); if (settings.localAudioTools && settings.connectionHandler) settings.connectionHandler(); else settings.localToolsRequested() } }
-            }
             Text { text: "SPOTIFY"; color: "#baff74"; font.family: Qt.platform.os === "windows" ? "Consolas" : "monospace"; font.pixelSize: 13 }
             Text { Layout.fillWidth: true; visible: !spotify.authorized; text: spotify.hasDefaultClientId ? qsTr("Sign in with your Spotify account in your browser, then return to Phosrack.") : qsTr("Create your own Spotify developer application, then enter its Client ID below. No Client Secret is needed."); color: "#b3bda9"; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {

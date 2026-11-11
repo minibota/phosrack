@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Phosrack VERSION 0.3.3 LANGUAGES CXX)
+project(Phosrack VERSION 0.3.4 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -36,7 +36,7 @@ endif()
 
 add_library(phosrack-core STATIC
     src/protocol.cpp src/protocol.h src/spectrum.cpp src/spectrum.h
-    src/spotifyclient.cpp src/spotifyclient.h ${PHOSRACK_AUDIO_SOURCE} src/audioanalyzer.h
+    src/spotifyclient.cpp src/spotifyclient.h ${PHOSRACK_AUDIO_SOURCE} src/audioanalyzer.h src/audioanalyzer_frame.cpp
     src/preferences.cpp src/preferences.h src/localization.cpp src/localization.h
     ${PHOSRACK_EQ_SOURCE} src/equalizer.h src/tokenstore.cpp src/tokenstore.h
     src/apoconfig.cpp src/apoconfig.h
