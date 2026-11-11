@@ -67,7 +67,7 @@ bool playbackUri(const QString &uri,bool context) {
 }
 }
 SpotifyClient::SpotifyClient(QObject *parent, QNetworkAccessManager *transport)
-    :QObject(parent),m_network(transport ? transport : new QNetworkAccessManager(this)),m_settings("Phosrack","Phosrack"),
+    :QObject(parent),m_network(transport ? transport : new QNetworkAccessManager(this)),m_settings(QSettings::defaultFormat(),QSettings::UserScope,"Phosrack","Phosrack"),
       m_defaultClientId(QString::fromLatin1(Phosrack::BuildConfig::SpotifyClientId)) {
     m_clientId=m_defaultClientId;
     if(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE")) {

@@ -4,6 +4,7 @@ import QtQuick
 Item {
     id: title
     property string text
+    property string trackKey
     property bool reducedMotion: false
     property real offset: 0
     readonly property real travel: measure.advanceWidth + 32
@@ -22,6 +23,7 @@ Item {
     }
     onScrollingChanged: restart()
     onTextChanged: restart()
+    onTrackKeyChanged: restart()
     onWidthChanged: restart()
     Component.onCompleted: restart()
 

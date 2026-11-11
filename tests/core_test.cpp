@@ -5,6 +5,7 @@
 #include <limits>
 #include "protocol.h"
 #include "spectrum.h"
+#include "webplaybackcontroller.h"
 class CoreTest : public QObject {
     Q_OBJECT
 private slots:
@@ -77,6 +78,20 @@ private slots:
         for (int note : {0, 4, 7}) QVERIFY(cMajor[note] > 0.6f);
         const auto silent = synthesize({});
         for (float note : silent) QCOMPARE(note, 0.f);
+    }
+    void sdkBridgePreservesPlaybackContextAndValidatedQueue() {
+        const QString context="spotify:album:1111111111111111111111";
+        const QVariantList next{QVariantMap{{"uri","spotify:track:2222222222222222222222"},{"title","Upcoming"},
+            {"art","file:///private"}},QVariantMap{{"uri","file:///bad"},{"title","Invalid"}}};
+        const auto state=WebPlaybackController::nativeState({{"contextUri",context},{"nextTracks",next},
+            {"ignoredField","never forwarded"}},"local-device");
+        QCOMPARE(state.value("contextUri").toString(),context);
+        QCOMPARE(state.value("deviceId").toString(),QString("local-device"));
+        QVERIFY(!state.contains("ignoredField"));
+        const auto queue=state.value("nextTracks").toList();
+        QCOMPARE(queue.size(),1);
+        QCOMPARE(queue.first().toMap().value("title").toString(),QString("Upcoming"));
+        QVERIFY(queue.first().toMap().value("art").toString().isEmpty());
     }
     void stereoMeterDoesNotDownmixOrRetainOldPeaks() {
         Phosrack::AudioHistory history;

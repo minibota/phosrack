@@ -60,9 +60,13 @@ async function fixture(drm = true) {
     assert.deepEqual(player.calls, ['connect'], 'Registration must not start playback');
     player.listeners.ready({device_id: 'local-device'});
     assert.equal(f.events.at(-1).data.deviceId, 'local-device');
+    f.sample.context = {uri: 'spotify:album:1111111111111111111111'};
+    f.sample.track_window.next_tracks = [{uri: 'spotify:track:2222222222222222222222', name: 'Upcoming'}];
     player.listeners.player_state_changed(f.sample);
     const state = f.events.at(-1).data;
     assert.equal(state.title, 'Track'); assert.equal(state.active, true);
+    assert.equal(state.contextUri, 'spotify:album:1111111111111111111111');
+    assert.equal(state.nextTracks[0].title, 'Upcoming');
     assert.equal(state.canNext, false); assert.equal(state.canSeek, true);
     assert.equal(state.repeat, 'track'); assert.equal(state.volume, 50);
     f.bridge.commandRequested.emit('volume', 42); await tick();

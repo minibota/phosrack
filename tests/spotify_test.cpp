@@ -111,7 +111,7 @@ private slots:
         QVERIFY(isolated.directory.isValid());
         const auto compiled=QString::fromLatin1(Phosrack::BuildConfig::SpotifyClientId);
         const auto legacy=compiled==QString(32,'c')?QString(32,'d'):QString(32,'c');
-        QSettings settings("Phosrack","Phosrack");
+        QSettings settings(QSettings::IniFormat,QSettings::UserScope,"Phosrack","Phosrack");
         settings.setValue("spotify/clientId",legacy);settings.sync();
         {
             SpotifyClient restored;
@@ -374,6 +374,61 @@ private slots:
         QCOMPARE(client.queueItems(),next);
         client.updateLocalPlaybackState({{"active",false}});
         QVERIFY(client.queueItems().isEmpty());
+    }
+    void savedTrackLoadsFromAnIsolatedProfileAndExpires() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto original=qgetenv("PHOSRACK_TEST_MODE");
+        struct RestoreTestMode {
+            QByteArray value;
+            ~RestoreTestMode(){qputenv("PHOSRACK_TEST_MODE",value);}
+        } restore{original};
+        const QString appId=QString(32,'a');
+        const auto configure=[&](SpotifyClient &client){
+            client.m_clientId=appId;
+            client.m_signedOut=false;
+            client.m_settings.beginGroup("resume-fixture");
+        };
+        // Redirect the actual settings implementation to a temporary file.
+        const auto format=QSettings::defaultFormat();
+        struct RestoreFormat {
+            QSettings::Format format;
+            ~RestoreFormat(){QSettings::setDefaultFormat(format);}
+        } formatGuard{format};
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,directory.path());
+        qunsetenv("PHOSRACK_TEST_MODE");
+        {
+            SpotifyClient writer;
+            configure(writer);session(writer);
+            QVERIFY(writer.m_settings.fileName().startsWith(directory.path()));
+            QVERIFY(writer.authorized());
+            QVERIFY(!writer.m_signedOut);
+            QVERIFY(!qEnvironmentVariableIsSet("PHOSRACK_TEST_MODE"));
+            writer.rememberPlayback({{"title","Saved track"},{"uri","spotify:track:1111111111111111111111"},
+                {"position",18000},{"duration",90000},{"art","https://example.test/art"}},true);
+            QCOMPARE(writer.m_resumeTrack.value("title").toString(),QString("Saved track"));
+            writer.m_settings.sync();
+            QCOMPARE(writer.m_settings.status(),QSettings::NoError);
+            QVERIFY(!writer.resumeTrack().contains("art"));
+            QCOMPARE(writer.m_settings.value("spotify/resume/"+appId).toMap().value("title").toString(),QString("Saved track"));
+        }
+        {
+            SpotifyClient restored;
+            configure(restored);
+            QCOMPARE(restored.m_settings.value("spotify/resume/"+appId).toMap().value("title").toString(),QString("Saved track"));
+            QVERIFY(!restored.m_signedOut);
+            restored.loadResumeTrack();
+            QCOMPARE(restored.resumeTrack().value("title").toString(),QString("Saved track"));
+            QCOMPARE(restored.resumeTrack().value("position").toInt(),18000);
+            QVERIFY(!restored.authorized());
+            auto expired=restored.resumeTrack();
+            expired["savedAt"]=QDateTime::currentMSecsSinceEpoch()-25*60*60*1000;
+            restored.m_settings.setValue("spotify/resume/"+appId,expired);
+            restored.m_resumeTrack.clear();restored.loadResumeTrack();
+            QVERIFY(restored.resumeTrack().isEmpty());
+            QVERIFY(!restored.m_settings.contains("spotify/resume/"+appId));
+        }
     }
     void rememberedTrackStaysPausedUntilPlayIsRequested() {
         MemoryNetwork transport;SpotifyClient client(nullptr,&transport);session(client,true);

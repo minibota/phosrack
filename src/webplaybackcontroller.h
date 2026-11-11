@@ -49,6 +49,8 @@ signals:
     void commandFinished(const QString &action, bool ok);
 private:
     friend class PlaybackBridge;
+    friend class CoreTest;
+    static QVariantMap nativeState(const QVariantMap &data,const QString &deviceId);
     void start();
     void stop();
     void acceptConnection();

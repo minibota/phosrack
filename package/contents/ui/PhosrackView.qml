@@ -143,6 +143,7 @@ Item {
                         MarqueeTitle {
                             objectName: "playerTrackTitle"; Layout.fillWidth: true
                             text: rack.displayTrack.title || qsTr("Your music, your way")
+                            trackKey: rack.displayTrack.uri || rack.displayTrack.url || ""
                             reducedMotion: rack.reducedMotion
                         }
                         Text { objectName: "playerTrackArtist"; Layout.fillWidth: true; text: rack.displayTrack.artist || (session.authorized ? (session.integratedPlayback ? qsTr("Choose a track in Search or Library") : qsTr("Start playing in Spotify")) : qsTr("Connect Spotify in Settings")); color: "#89b86d"; font.pixelSize: 11; maximumLineCount: 1; elide: Text.ElideRight }

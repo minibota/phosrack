@@ -217,6 +217,31 @@ void WebPlaybackController::command(const QString &action,const QVariant &value)
     }
     emit m_bridge->commandRequested(action,argument);
 }
+QVariantMap WebPlaybackController::nativeState(const QVariantMap &data,const QString &deviceId) {
+    QVariantMap state;
+    // Keep only fields used by the native player; nothing is logged.
+    for(const auto &key:{"active","playing","position","duration","volume","uri","title","artist","album","art","url","shuffle","repeat","canControl","canToggle","canNext","canPrevious","canSeek","canVolume","canShuffle","canRepeat"})
+        if(data.contains(key))state.insert(key,data.value(key));
+    static const QRegularExpression collection("^spotify:(album|playlist):[A-Za-z0-9]{22}$");
+    static const QRegularExpression playable("^spotify:(track|episode):[A-Za-z0-9]{22}$");
+    const auto context=data.value("contextUri").toString();
+    if(collection.match(context).hasMatch())state["contextUri"]=context;
+    QVariantList next;
+    for(const auto &entry:data.value("nextTracks").toList()) {
+        if(next.size()>=20)break;
+        const auto item=entry.toMap();
+        const auto uri=item.value("uri").toString();
+        const auto title=item.value("title").toString();
+        if(title.isEmpty()||!playable.match(uri).hasMatch())continue;
+        const auto art=QUrl(item.value("art").toString());
+        next.append(QVariantMap{{"uri",uri},{"title",title.left(500)},
+            {"subtitle",item.value("subtitle").toString().left(500)},
+            {"art",art.scheme()=="https"?art.toString():QString()},{"canPlay",true}});
+    }
+    state["nextTracks"]=next;
+    state["device"]=QStringLiteral("Phosrack");state["deviceId"]=deviceId;
+    return state;
+}
 void WebPlaybackController::receiveEvent(int generation,const QString &event,const QVariantMap &data) {
     if(generation!=m_generation||!m_enabled||m_token.isEmpty()||!m_page)return;
     if(event=="ready") {
@@ -228,12 +253,7 @@ void WebPlaybackController::receiveEvent(int generation,const QString &event,con
         unavailable();setStatus(tr("Spotify playback is reconnecting…"));m_startup.start(45000);
     } else if(event=="state") {
         if(!m_ready)return;
-        QVariantMap state;
-        // Keep only fields used by the native player; nothing is logged.
-        for(const auto &key:{"active","playing","position","duration","volume","uri","title","artist","album","art","url","shuffle","repeat","canControl","canToggle","canNext","canPrevious","canSeek","canVolume","canShuffle","canRepeat"})
-            if(data.contains(key))state.insert(key,data.value(key));
-        state["device"]=QStringLiteral("Phosrack");state["deviceId"]=m_deviceId;
-        emit playbackState(state);
+        emit playbackState(nativeState(data,m_deviceId));
     } else if(event=="command_finished") {
         const auto action=data.value("action").toString();const bool ok=data.value("ok").toBool();
         emit commandFinished(action,ok);
